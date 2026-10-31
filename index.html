@@ -64,6 +64,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 .mode{text-align:left;padding:18px 16px 16px;border-radius:18px;background:var(--surface);border:2px solid var(--line);
   display:flex;flex-direction:column;gap:6px;min-height:150px;transition:transform .12s,border-color .12s;position:relative;overflow:hidden}
 .mode:hover{border-color:var(--lvl);transform:translateY(-2px)}
+a.mode{color:inherit;text-decoration:none}
 .mode .glyph{font-family:var(--score);font-style:italic;font-size:2.1rem;line-height:1;color:var(--lvl)}
 .mode h3{font-size:1.25rem}
 .mode p{margin:0;color:var(--muted);font-size:.9rem;font-weight:600}
@@ -409,6 +410,7 @@ function home(){
     <button class="mode" data-m="ladder"><span class="glyph">accel.</span><h3>Tempo Ladder</h3><p>Put the tempos in order, slow to fast.</p><span class="best">${b.ladder!=null?`Best: ${b.ladder.toFixed(1)}s`:"Not played yet"}</span></button>
     <button class="mode wide" data-m="ear"><span class="glyph">cresc.</span><h3>Ear Detective</h3><p>Listen to a mystery tune. Is it fast or slow, loud or soft, bouncy or smooth? Pick the word that matches.</p><span class="best">${b.ear!=null?`Best: ${b.ear}/10`:"Not played yet"}</span></button>
     <button class="mode wide" data-m="snake"><span class="glyph">legato</span><h3>Word Snake</h3><p>Read the meaning, then steer the snake to eat the right word. Every right word makes it longer!</p><span class="best">${b.snake!=null?`Best: ${b.snake}`:"Not played yet"}</span></button>
+    <a class="mode wide" href="intervals.html"><span class="glyph">8va</span><h3>Piano Intervalli →</h3><p>A new ear game: hear two piano notes and name the interval between them.</p></a>
    </div></div>
    <details class="list"><summary>All ${LEVELS[lvl]} words (${terms(lvl).length})</summary>
     <dl class="terms">${terms(lvl).map(x=>`<dt>${esc(x.t)}</dt><dd>${esc(x.m)}</dd>`).join("")}</dl></details>

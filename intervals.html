@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Piano Intervalli</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Nunito:wght@500;700;800&family=Playfair+Display:ital,wght@1,800&display=swap">
+<style>
+/* Same look as Piano Parole: one narrow column under a playable keyboard; level color tints everything. */
+:root{
+  --bg:#F4F3F8; --surface:#FFFFFF; --ink:#1A1720; --muted:#69647A; --line:#E2DFEA;
+  --jr:#F08A3E; --int:#3E9CC4; --sr:#8B5BC9; --on-lvl:#17141C;
+  --good:#23945A; --bad:#D43F57;
+  --key-w:#FFFFFF; --key-b:#1A1720; --key-edge:#CFCBD9;
+  --display:'Bricolage Grotesque', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --body:'Nunito', system-ui, -apple-system, sans-serif;
+  --score:'Playfair Display', Georgia, 'Times New Roman', serif;
+  --lvl:var(--jr);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131118; --surface:#1E1B25; --ink:#F1EEF6; --muted:#A39DB0; --line:#302B3A;
+  --jr:#F59A55; --int:#5BB4DA; --sr:#A97FE3; --good:#45B97A; --bad:#EF6478;
+  --key-w:#ECE8F2; --key-b:#08070B; --key-edge:#3A3545; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#131118; --surface:#1E1B25; --ink:#F1EEF6; --muted:#A39DB0; --line:#302B3A;
+  --jr:#F59A55; --int:#5BB4DA; --sr:#A97FE3; --good:#45B97A; --bad:#EF6478;
+  --key-w:#ECE8F2; --key-b:#08070B; --key-edge:#3A3545; color-scheme:dark }
+body.l1{--lvl:var(--jr)} body.l2{--lvl:var(--int)} body.l3{--lvl:var(--sr)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.app{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:3px solid var(--lvl);outline-offset:3px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
+
+/* keyboard */
+.kb{position:relative;height:96px;display:flex;border-radius:4px 4px 12px 12px;overflow:hidden;
+  border:2px solid var(--key-b);border-top-width:10px;background:var(--key-b);touch-action:manipulation;user-select:none}
+.kb .w{flex:1;background:var(--key-w);border-right:1px solid var(--key-edge);border-radius:0 0 6px 6px;transition:background .15s;position:relative}
+.kb .w:last-child{border-right:0}
+.kb .b{position:absolute;top:0;width:4.2%;height:58%;background:var(--key-b);border-radius:0 0 4px 4px;transform:translateX(-50%);transition:background .15s;z-index:2}
+.kb .lit{background:var(--lvl)!important}
+.kb .mid::after{content:"";position:absolute;left:50%;bottom:10px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--key-edge)}
+.kb .mid.mark::after{display:none}
+.kb .tag{position:absolute;left:50%;bottom:6px;translate:-50% 0;font-family:var(--display);font-weight:800;font-size:.8rem;color:var(--on-lvl);pointer-events:none}
+.kb .b .tag{bottom:4px;font-size:.65rem}
+
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand h1{font-size:clamp(2.2rem,8vw,3.1rem);font-weight:800;letter-spacing:-.02em}
+.brand h1 em{font-family:var(--score);font-style:italic;color:var(--lvl);font-weight:800}
+.brand p{margin:4px 0 0;color:var(--muted);font-weight:600}
+.top-btns{display:flex;gap:8px;flex-wrap:wrap}
+.icon-btn{padding:8px 12px;border-radius:999px;border:2px solid var(--line);font-weight:800;font-size:.85rem;color:var(--muted);background:var(--surface);text-decoration:none}
+.label{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--muted)}
+.group{display:flex;flex-direction:column;gap:8px}
+
+/* levels + ways */
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ways{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.lv{padding:12px 8px;border-radius:14px;border:2px solid var(--line);background:var(--surface);text-align:center;transition:transform .12s}
+.lv b{display:block;font-family:var(--display);font-size:1.1rem}
+.lv span{font-size:.8rem;color:var(--muted);font-weight:700}
+.lv[aria-pressed="true"]{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
+.lv[aria-pressed="true"] span{color:var(--on-lvl);opacity:.75}
+.lv:active{transform:scale(.97)}
+.ways .lv b{font-size:1rem}
+
+/* modes */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mode{text-align:left;padding:18px 16px 16px;border-radius:18px;background:var(--surface);border:2px solid var(--line);
+  display:flex;flex-direction:column;gap:6px;min-height:150px;transition:transform .12s,border-color .12s}
+.mode:hover{border-color:var(--lvl);transform:translateY(-2px)}
+.mode.wide{grid-column:1/-1;min-height:0}
+.mode .glyph{font-family:var(--score);font-style:italic;font-size:2.1rem;line-height:1;color:var(--lvl)}
+.mode h3{font-size:1.25rem}
+.mode p{margin:0;color:var(--muted);font-size:.9rem;font-weight:600}
+.mode .best{margin-top:auto;font-size:.8rem;font-weight:800;color:var(--ink)}
+
+/* play */
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bar h2{font-size:1.3rem;flex:1;min-width:0}
+.chip{padding:4px 10px;border-radius:999px;background:var(--lvl);color:var(--on-lvl);font-weight:800;font-size:.78rem}
+.back{font-weight:800;padding:6px 12px 6px 6px;border-radius:999px;color:var(--muted)}
+.back:hover{color:var(--ink)}
+.stats{display:flex;justify-content:space-between;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;font-size:.95rem}
+.stats strong{color:var(--ink)}
+.dots{display:flex;gap:6px}
+.dots i{flex:1;height:8px;border-radius:4px;background:var(--line)}
+.dots i.ok{background:var(--good)} .dots i.no{background:var(--bad)} .dots i.now{background:var(--lvl)}
+.timer{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.timer i{display:block;height:100%;background:var(--lvl);transform-origin:left}
+
+.qcard{background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:22px 20px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center}
+.qcard .ask{color:var(--muted);font-weight:800;font-size:.85rem;letter-spacing:.06em;text-transform:uppercase}
+.listen{width:92px;height:92px;border-radius:50%;background:var(--lvl);color:var(--on-lvl);font-size:2.1rem;display:grid;place-items:center;box-shadow:0 5px 0 var(--line);transition:transform .1s}
+.listen:active{transform:translateY(3px)}
+.listen.playing{animation:pulse .9s ease-in-out infinite}
+.listen:disabled{opacity:.5}
+.reveal{min-height:1.6em;font-family:var(--display);font-weight:800;font-size:1.15rem}
+.reveal small{display:block;font-family:var(--body);color:var(--muted);font-weight:700;font-size:.9rem}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.opt{padding:14px 10px;border-radius:14px;background:var(--surface);border:2px solid var(--line);font-family:var(--display);font-weight:800;font-size:1.05rem;transition:transform .1s,border-color .1s;line-height:1.15}
+.opt:hover:not(:disabled){border-color:var(--lvl)}
+.opt:active:not(:disabled){transform:scale(.97)}
+.opt.ok{background:var(--good);border-color:var(--good);color:#fff}
+.opt.no{background:var(--bad);border-color:var(--bad);color:#fff;animation:shake .35s}
+.opt:disabled{cursor:default}
+.btn{padding:14px 16px;border-radius:14px;font-weight:800;font-size:1rem;border:2px solid var(--line);background:var(--surface);text-align:center}
+.btn.go{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
+.btn:active{transform:scale(.98)}
+.btn[hidden]{display:none}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{margin:0;text-align:center;color:var(--muted);font-weight:600;font-size:.9rem}
+
+/* learn list */
+.learn{display:flex;flex-direction:column;gap:10px}
+.lrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:12px 14px}
+.lrow h3{font-size:1.15rem}
+.lrow p{margin:0;color:var(--muted);font-weight:600;font-size:.9rem}
+.lrow p b{color:var(--ink)}
+.lbtns{display:flex;gap:6px;grid-row:1/3;grid-column:2}
+.plain{padding:8px 12px;border-radius:999px;border:2px solid var(--line);font-weight:800;font-size:.85rem;color:var(--muted);background:var(--surface);white-space:nowrap}
+.plain:active,.plain.playing{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
+
+/* finish */
+.done{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:30px 20px}
+.done h2{font-family:var(--score);font-style:italic;font-size:clamp(2.4rem,10vw,3.4rem);color:var(--lvl)}
+.done .num{font-family:var(--display);font-size:1.4rem;font-weight:800}
+.stars{font-size:2.2rem;letter-spacing:.2em;color:var(--lvl)} .stars .off{color:var(--line)}
+.missed{width:100%;text-align:left}
+.terms{display:grid;grid-template-columns:minmax(0,45%) minmax(0,1fr);gap:0 14px}
+.terms dt,.terms dd{margin:0;padding:8px 0;border-top:1px solid var(--line)}
+.terms dt{font-weight:800} .terms dd{color:var(--muted);font-weight:600}
+.done .row{width:100%}
+.credit{margin:0;text-align:center;color:var(--muted);font-size:.8rem;font-weight:600}
+.credit a{color:inherit}
+
+@keyframes pulse{50%{transform:scale(1.08)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:20}
+@media (max-width:520px){
+  .app{gap:16px} .kb{height:64px;border-top-width:7px}
+  body{padding-block:12px 32px}
+  .ways .lv{padding:10px 4px}
+  .mode{min-height:132px;padding:14px 12px}.mode h3{font-size:1.1rem}
+  .opt{padding:12px 6px;font-size:.98rem}
+  .lrow{grid-template-columns:1fr} .lbtns{grid-row:auto;grid-column:1} .lbtns .plain{flex:1}
+  .kb .tag{font-size:.65rem;bottom:3px} .kb .b .tag{font-size:.5rem}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<canvas id="fx"></canvas>
+<div class="app">
+  <div class="kb" id="kb" aria-label="Piano keyboard, tap to play"></div>
+  <div id="stage"></div>
+</div>
+
+<script>
+// ---------- the intervals. s: half steps, k: letter steps (for spelling the top note), l: first level it shows up in
+const IV=[
+ {id:"m2",name:"Minor 2nd",s:1,k:1,l:2,song:"Jaws",mel:"(the shark music)"},
+ {id:"M2",name:"Major 2nd",s:2,k:1,l:1,song:"Happy Birthday",mel:"“Hap-py”"},
+ {id:"m3",name:"Minor 3rd",s:3,k:2,l:2,song:"Greensleeves",mel:"“A-las”"},
+ {id:"M3",name:"Major 3rd",s:4,k:2,l:1,song:"When the Saints Go Marching In",mel:"“Oh when”"},
+ {id:"P4",name:"Perfect 4th",s:5,k:3,l:1,song:"Here Comes the Bride",mel:"“Here comes”"},
+ {id:"TT",name:"Tritone",s:6,k:3,l:3,song:"The Simpsons",mel:"“The Simp-”"},
+ {id:"P5",name:"Perfect 5th",s:7,k:4,l:1,song:"Twinkle Twinkle Little Star",mel:"“Twin-kle twin-kle”"},
+ {id:"m6",name:"Minor 6th",s:8,k:5,l:3,song:"The Entertainer",mel:"(the jump in the first bar)"},
+ {id:"M6",name:"Major 6th",s:9,k:5,l:2,song:"My Bonnie Lies Over the Ocean",mel:"“My Bon-”"},
+ {id:"m7",name:"Minor 7th",s:10,k:6,l:3,song:"Star Trek theme",mel:"(the first two notes)"},
+ {id:"M7",name:"Major 7th",s:11,k:6,l:3,song:"Take On Me",mel:"(the chorus “Take on me”: 1st to 3rd note)"},
+ {id:"P8",name:"Octave",s:12,k:7,l:1,song:"Somewhere Over the Rainbow",mel:"“Some-where”"}
+];
+const LEVELS={1:"Junior",2:"Intermediate",3:"Senior"};
+const WAYS={up:"Up",down:"Down",together:"Together",mix:"Mix"};
+const ivs=l=>IV.filter(x=>x.l<=l);
+
+// ---------- helpers
+const $=s=>document.querySelector(s);
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick=a=>a[Math.random()*a.length|0];
+const store={get(k,d){try{const v=localStorage.getItem("pi:"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+             set(k,v){try{localStorage.setItem("pi:"+k,JSON.stringify(v))}catch(e){}}};
+let lvl=store.get("lvl",1),way=store.get("way","up"),muted=store.get("mute",false),timers=[],raf=0;
+const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
+const clearTimers=()=>{timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);stopAll()};
+
+// ---------- note names, spelled the way a theory book would (C up a major 3rd is E, E♭ up a major 3rd is G)
+const LETTERS="CDEFGAB",NAT=[0,2,4,5,7,9,11];
+// roots the questions start on: letter index, accidental (-1 flat), midi in the 4th octave
+const ROOTS=[[0,0],[1,0],[2,-1],[2,0],[3,0],[4,0],[5,0],[6,-1],[6,0]];
+const acc=a=>a===-1?"♭":a===1?"♯":"";
+function spell(li,a){return LETTERS[li%7]+acc(a)}
+// returns {lo,hi,loName,hiName} or null if the top note would need a double sharp/flat
+function build(iv,root){
+  const [li,a]=root,lo=60+NAT[li]+a,hiLi=li+iv.k,hi=lo+iv.s;
+  const natHi=NAT[hiLi%7]+12*Math.floor(hiLi/7)+60, ha=hi-natHi;
+  const hiName=spell(hiLi,ha);
+  if(Math.abs(ha)>1||["C♭","F♭","E♯","B♯"].includes(hiName))return null; // correct but confusing spellings are skipped
+  return {lo,hi,loName:spell(li,a),hiName};
+}
+function makeQ(iv){
+  // the keyboard runs C3 to C5 with middle C in the middle: notes go around middle C, an octave lower when the top would not fit
+  const b=pick(ROOTS.map(r=>build(iv,r)).filter(Boolean)), up=b.hi<=72&&Math.random()<.5?0:-12;
+  const w=way==="mix"?pick(["up","down","together"]):way;
+  return {iv,w,lo:b.lo+up,hi:b.hi+up,loName:b.loName,hiName:b.hiName};
+}
+
+// ---------- piano sound: real recordings of a Yamaha grand (Salamander Grand Piano), stretched to fill in the notes between
+const SAMPLES={45:"A2",48:"C3",51:"Ds3",54:"Fs3",57:"A3",60:"C4",63:"Ds4",66:"Fs4",69:"A4",72:"C5"};
+const buffers={};let ctx,master,loading=null,live=[];
+function audio(){
+  if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();master.gain.value=.9;
+    const lim=ctx.createDynamicsCompressor();lim.threshold.value=-6;lim.knee.value=0;lim.ratio.value=12;lim.attack.value=.003;lim.release.value=.15;
+    master.connect(lim);lim.connect(ctx.destination)}
+  if(ctx.state!=="running")ctx.resume();return ctx}
+function loadPiano(){
+  if(loading)return loading;
+  audio();
+  const decode=ab=>new Promise((ok,no)=>{const p=ctx.decodeAudioData(ab,ok,no);if(p&&p.then)p.then(ok,no)});
+  loading=Promise.all(Object.entries(SAMPLES).map(([n,f])=>
+    fetch(`piano/${f}.mp3`).then(r=>r.arrayBuffer()).then(decode).then(b=>{buffers[n]=b}).catch(()=>{})));
+  return loading;
+}
+// phones only allow sound that starts during a tap, so every tap wakes the sound up
+function unlock(){
+  try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){} // play even with the silent switch on
+  try{audio();const b=ctx.createBuffer(1,1,22050),s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0)}catch(e){}
+  loadPiano();
+}
+["touchend","pointerup","click","keydown"].forEach(t=>addEventListener(t,unlock,{capture:true,passive:true}));
+function stopAll(){if(!ctx)return;const t=ctx.currentTime;live.forEach(g=>{try{g.gain.cancelScheduledValues(t);g.gain.setTargetAtTime(0,t,.04)}catch(e){}});live=[]}
+function light(n,when=0,ms=500){
+  later(()=>{const k=kb.querySelector(`[data-n="${n}"]`);if(k){k.classList.add("lit");setTimeout(()=>k.classList.remove("lit"),ms)}},when*1000);
+}
+// play one note now (+when seconds), held for dur seconds
+function note(n,when=0,dur=1.6,vol=.8){
+  light(n,when,Math.min(dur*1000,900));
+  if(muted)return;
+  try{
+    audio();
+    const t0=ctx.currentTime+when+.02, g=ctx.createGain();
+    g.connect(master);live.push(g);
+    const src=Object.keys(SAMPLES).map(Number).reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a);
+    if(buffers[src]){
+      const s=ctx.createBufferSource();s.buffer=buffers[src];s.playbackRate.value=2**((n-src)/12);s.connect(g);
+      g.gain.setValueAtTime(vol,t0);g.gain.setValueAtTime(vol,t0+dur);g.gain.setTargetAtTime(0,t0+dur,.12);
+      s.start(t0);s.stop(t0+dur+1);
+    }else{ // piano not loaded (offline): a plain tone so the game still works
+      const o=ctx.createOscillator();o.type="triangle";o.frequency.value=440*2**((n-69)/12);o.connect(g);
+      g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol*.3,t0+.01);g.gain.exponentialRampToValueAtTime(.001,t0+dur);
+      o.start(t0);o.stop(t0+dur);
+    }
+  }catch(e){}
+}
+// play a question's two notes; returns how long it takes in ms
+function playQ(q){
+  stopAll();
+  if(q.w==="together"){note(q.lo,0,2);note(q.hi,0,2);return 1600}
+  const [a,b]=q.w==="down"?[q.hi,q.lo]:[q.lo,q.hi];
+  note(a,0,.9);note(b,.75,1.6);return 1900;
+}
+const fanfare=()=>[48,52,55,60,64,67,72].forEach((n,i)=>note(n,i*.09,1.6,.5));
+
+// ---------- keyboard: C3 to C5, middle C (60) in the middle, tap a key to play it
+const WHITES=[48,50,52,53,55,57,59,60,62,64,65,67,69,71,72];
+const BLACKS=[[49,1],[51,2],[54,4],[56,5],[58,6],[61,8],[63,9],[66,11],[68,12],[70,13]];
+const kb=$("#kb");
+kb.innerHTML=WHITES.map(n=>`<div class="w" data-n="${n}"></div>`).join("")+
+  BLACKS.map(([n,i])=>`<div class="b" data-n="${n}" style="left:${i/WHITES.length*100}%"></div>`).join("");
+kb.querySelector('[data-n="60"]').classList.add("mid");
+kb.addEventListener("pointerdown",e=>{const n=e.target.closest("[data-n]")?.dataset.n;if(n){stopAll();note(+n,0,1.4)}});
+// after an answer, the two keys stay marked with their names until the next question
+function mark(q){clearMarks();[[q.lo,q.loName],[q.hi,q.hiName]].forEach(([n,name])=>{const k=kb.querySelector(`[data-n="${n}"]`);
+  if(k){k.classList.add("mark","lit");k.insertAdjacentHTML("beforeend",`<span class="tag">${name}</span>`)}})}
+function clearMarks(){kb.querySelectorAll(".mark").forEach(k=>{k.classList.remove("mark","lit");k.querySelector(".tag")?.remove()})}
+
+// ---------- confetti
+const fx=$("#fx"),fc=fx.getContext("2d");let bits=[];
+function confetti(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  fx.width=innerWidth;fx.height=innerHeight;
+  const cs=getComputedStyle(document.body),cols=["--jr","--int","--sr","--good"].map(v=>cs.getPropertyValue(v).trim());
+  bits=Array.from({length:90},()=>({x:Math.random()*fx.width,y:-20-Math.random()*fx.height*.5,vx:(Math.random()-.5)*2,vy:2+Math.random()*3,
+    c:cols[Math.random()*4|0],note:Math.random()<.3,a:Math.random()*6}));
+  const step=()=>{fc.clearRect(0,0,fx.width,fx.height);bits.forEach(b=>{b.x+=b.vx;b.y+=b.vy;b.a+=.1;fc.fillStyle=b.c;
+      if(b.note){fc.font="bold 22px Georgia";fc.fillText("♪",b.x,b.y)}else{fc.save();fc.translate(b.x,b.y);fc.rotate(b.a);fc.fillRect(-5,-3,10,6);fc.restore()}});
+    bits=bits.filter(b=>b.y<fx.height+30);if(bits.length)requestAnimationFrame(step);else fc.clearRect(0,0,fx.width,fx.height)};
+  step();
+}
+
+// ---------- screens
+const stage=$("#stage");
+const setLevel=l=>{lvl=l;store.set("lvl",l);document.body.className="l"+l};
+const bestKey=m=>`best:${lvl}:${way}:${m}`, best=m=>store.get(bestKey(m),null);
+function bar(title){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl]} · ${WAYS[way]}</span></div>`}
+const wireBack=()=>{$("#back").onclick=home};
+const wayLine=q=>q.w==="together"?`${q.loName} and ${q.hiName} together`:q.w==="down"?`${q.hiName} down to ${q.loName}`:`${q.loName} up to ${q.hiName}`;
+
+function home(){
+  clearTimers();clearMarks();
+  const bq=best("quiz"),bc=best("clock");
+  stage.innerHTML=`<div class="app">
+   <div class="top"><div class="brand"><h1>Piano <em>Intervalli</em></h1><p>Hear two notes. Name the gap.</p></div>
+     <div class="top-btns"><a class="icon-btn" href="./">Italian words →</a>
+     <button class="icon-btn" id="mute" aria-pressed="${muted}">${muted?"Sound off":"Sound on"}</button></div></div>
+   <div class="group"><span class="label">Pick your level</span>
+    <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l]}</b><span>${ivs(l).length} intervals</span></button>`).join("")}</div></div>
+   <div class="group"><span class="label">How the notes are played</span>
+    <div class="ways">${Object.entries(WAYS).map(([k,v])=>`<button class="lv" data-w="${k}" aria-pressed="${k===way}"><b>${v}</b></button>`).join("")}</div></div>
+   <div class="group"><span class="label">Pick a game</span>
+   <div class="modes">
+    <button class="mode" data-m="quiz"><span class="glyph">mf</span><h3>Ear Quiz</h3><p>10 intervals. Go for three stars.</p><span class="best">${bq!=null?`Best: ${bq}/10`:"Not played yet"}</span></button>
+    <button class="mode" data-m="clock"><span class="glyph">ff</span><h3>Beat the Clock</h3><p>How many can you name in 60 seconds?</p><span class="best">${bc!=null?`Best: ${bc}`:"Not played yet"}</span></button>
+    <button class="mode wide" data-m="learn"><span class="glyph">p</span><h3>Learn the Sounds</h3><p>Hear each interval and the song that starts with it.</p></button>
+   </div></div>
+   <p class="credit">Piano: <a href="https://archive.org/details/SalamanderGrandPianoV3" target="_blank" rel="noopener">Salamander Grand Piano</a> by Alexander Holm (CC BY 3.0)</p>
+  </div>`;
+  stage.querySelectorAll("[data-l]").forEach(el=>el.onclick=()=>{setLevel(+el.dataset.l);home()});
+  stage.querySelectorAll("[data-w]").forEach(el=>el.onclick=()=>{way=el.dataset.w;store.set("way",way);home()});
+  stage.querySelectorAll(".mode").forEach(el=>el.onclick=()=>({quiz,clock,learn})[el.dataset.m]());
+  $("#mute").onclick=()=>{muted=!muted;store.set("mute",muted);if(muted)stopAll();home()};
+}
+
+// one question on screen: big listen button, answer buttons. onPick(ok) after a choice.
+function askHTML(pool){
+  return `<div class="qcard"><span class="ask">What interval is this?</span>
+     <button class="listen" id="listen" aria-label="Play again">▶</button>
+     <div class="reveal" id="reveal"><small>Tap ▶ to hear it again</small></div></div>
+   <div class="opts">${pool.map(x=>`<button class="opt" data-id="${x.id}">${x.name}</button>`).join("")}</div>`;
+}
+function runQ(q,onPick){
+  clearMarks();
+  const btn=$("#listen");
+  const play=()=>{btn.classList.add("playing");const ms=playQ(q);later(()=>btn.classList.remove("playing"),ms)};
+  btn.onclick=play;
+  // wait for the piano (only the first time) so the very first question sounds like a piano too
+  btn.disabled=true;$("#reveal").innerHTML="<small>Loading the piano…</small>";
+  loadPiano().then(()=>{if(!btn.isConnected)return;btn.disabled=false;$("#reveal").innerHTML="<small>Tap ▶ to hear it again</small>";play()});
+  stage.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    const ok=b.dataset.id===q.iv.id;
+    stage.querySelectorAll(".opt").forEach(o=>{o.disabled=true;if(o.dataset.id===q.iv.id)o.classList.add("ok")});
+    if(!ok){b.classList.add("no");later(()=>playQ(q),250)} // hear it again, now knowing the name
+    mark(q);
+    $("#reveal").innerHTML=`${q.iv.name}<small>${wayLine(q)}</small>`;
+    onPick(ok);
+  });
+}
+// a fresh interval each time, never the same one twice in a row
+function nextIv(pool,last){let x;do{x=pick(pool)}while(x===last&&pool.length>1);return x}
+
+// --- ear quiz
+function quiz(){
+  clearTimers();
+  const pool=ivs(lvl);let i=0,score=0,streak=0,res=[],missed=[],last=null;
+  const qs=Array.from({length:10},()=>{last=nextIv(pool,last);return makeQ(last)});
+  const draw=()=>{
+    if(i===qs.length){
+      const prev=best("quiz");if(prev==null||score>prev)store.set(bestKey("quiz"),score);
+      const stars=score>=9?3:score>=7?2:score>=5?1:0;
+      return finish({title:stars===3?"Bravissimo!":stars>=1?"Bravo!":"Ancora!",stars,line:`${score} out of 10`,missed,again:quiz,party:stars>=2});
+    }
+    stage.innerHTML=`<div class="app">${bar("Ear Quiz")}
+     <div class="dots">${qs.map((_,k)=>`<i class="${res[k]===true?"ok":res[k]===false?"no":k===i?"now":""}"></i>`).join("")}</div>
+     <div class="stats"><span>Question <strong>${i+1}</strong> of 10</span><span>${streak>1?`♪ ${streak} in a row`:""}</span></div>
+     ${askHTML(pool)}
+     <button class="btn go" id="next" hidden>Next →</button></div>`;
+    wireBack();
+    runQ(qs[i],ok=>{res[i]=ok;if(ok){score++;streak++}else{streak=0;if(!missed.includes(qs[i]))missed.push(qs[i])}
+      // right answers move on by themselves; after a wrong one you choose when to go on
+      if(ok)later(()=>{i++;draw()},1400);else{const n=$("#next");n.hidden=false;n.onclick=()=>{i++;draw()}}});
+  };
+  draw();
+}
+
+// --- beat the clock
+function clock(){
+  clearTimers();
+  const pool=ivs(lvl),LEN=60;let score=0,start=0,last=null,over=false,missed=[];
+  stage.innerHTML=`<div class="app">${bar("Beat the Clock")}
+   <div class="stats"><span>Score <strong id="score">0</strong></span><span><strong id="secs">${LEN}</strong>s</span></div>
+   <div class="timer"><i id="tb"></i></div><div id="q" style="display:flex;flex-direction:column;gap:14px"></div></div>`;
+  wireBack();
+  const next=()=>{
+    if(over)return;
+    last=nextIv(pool,last);const q=makeQ(last);
+    $("#q").innerHTML=askHTML(pool);
+    runQ(q,ok=>{if(over)return;if(ok)score++;else if(!missed.includes(q))missed.push(q);
+      $("#score").textContent=score;later(next,ok?900:2200)});
+  };
+  const tick=()=>{
+    if(!start){raf=requestAnimationFrame(tick);return} // the clock starts once the piano has loaded
+    const left=Math.max(0,LEN-(performance.now()-start)/1000);
+    $("#tb").style.transform=`scaleX(${left/LEN})`;$("#secs").textContent=Math.ceil(left);
+    if(left<=0){over=true;clearTimers();const prev=best("clock"),rec=prev==null||score>prev;if(rec)store.set(bestKey("clock"),score);
+      return finish({title:score>=15?"Bravissimo!":score>=8?"Bravo!":"Ancora!",line:`${score} correct in 60 seconds`,
+        sub:rec&&score>0?"New best score!":prev!=null?`Your best: ${prev}`:"",missed,again:clock,party:rec&&score>0})}
+    raf=requestAnimationFrame(tick)};
+  next();loadPiano().then(()=>{start=performance.now()});raf=requestAnimationFrame(tick);
+}
+
+// --- learn the sounds
+function learn(){
+  clearTimers();clearMarks();
+  const pool=ivs(lvl);
+  stage.innerHTML=`<div class="app">${bar("Learn the Sounds")}
+   <p class="hint">Each one starts on middle C (the dot on the keyboard). Sing the song in your head to remember the sound.</p>
+   <div class="learn">${pool.map(x=>`<div class="lrow"><h3>${x.name}</h3>
+     <div class="lbtns"><button class="plain" data-id="${x.id}" data-w="up">▶ Up</button><button class="plain" data-id="${x.id}" data-w="down">▶ Down</button><button class="plain" data-id="${x.id}" data-w="together">▶ Both</button></div>
+     <p><b>${x.song}</b> ${x.mel} · ${x.s} half step${x.s>1?"s":""}</p></div>`).join("")}</div></div>`;
+  wireBack();
+  stage.querySelectorAll(".plain").forEach(b=>b.onclick=()=>{
+    const iv=IV.find(x=>x.id===b.dataset.id),sp=build(iv,ROOTS[0]);
+    const q={iv,w:b.dataset.w,lo:sp.lo,hi:sp.hi,loName:sp.loName,hiName:sp.hiName};
+    loadPiano().then(()=>{mark(q);const ms=playQ(q);b.classList.add("playing");later(()=>b.classList.remove("playing"),ms)});
+  });
+}
+
+// --- finish
+function finish({title,line,sub="",stars,missed=[],again,party}){
+  clearTimers();clearMarks();
+  stage.innerHTML=`<div class="app">${bar("Finished")}<div class="done">
+    <h2>${title}</h2>
+    ${stars!=null?`<div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(k=>`<span class="${k<stars?"":"off"}">★</span>`).join("")}</div>`:""}
+    <div class="num">${line}</div>${sub?`<div style="color:var(--muted);font-weight:700">${sub}</div>`:""}
+    ${missed.length?`<div class="missed"><span class="label">Tap to hear the ones you missed</span><dl class="terms">${missed.map((q,k)=>`<dt><button class="plain" data-k="${k}">▶ ${q.iv.name}</button></dt><dd>${wayLine(q)}</dd>`).join("")}</dl></div>`:""}
+    <div class="row"><button class="btn" id="home">All games</button><button class="btn go" id="again">Play again</button></div></div></div>`;
+  wireBack();$("#home").onclick=home;$("#again").onclick=again;
+  stage.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const q=missed[+b.dataset.k];mark(q);playQ(q)});
+  if(party){fanfare();confetti()}
+}
+
+setLevel(lvl);loadPiano();home();
+</script>
+
+</html>
