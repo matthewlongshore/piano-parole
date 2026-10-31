@@ -328,7 +328,7 @@ function home(){
 // one question: draw the note, wait for a key. No sound until the answer, so it can't be found by ear.
 // onAnswer(ok, ms) is called once.
 function ask(q,onAnswer){
-  if(!bigScreen())buildKb([q.clef]); // phones: the keyboard shows only the part for this clef
+  clearMarks();if(!bigScreen())buildKb([q.clef]); // phones: the keyboard shows only the part for this clef
   $("#card").innerHTML=staffSVG(q)+`<div class="side"><div class="reveal" id="reveal">Tap the key for this note</div><button class="btn go" id="next" hidden>Next →</button></div>`;
   const t0=performance.now();
   onKey=n=>{
