@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Piano Parole</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Nunito:wght@500;700;800&family=Playfair+Display:ital,wght@1,800&display=swap">
+<style>
+/* Layout: one narrow column under a playable keyboard; level color tints everything. */
+:root{
+  --bg:#F4F3F8; --surface:#FFFFFF; --ink:#1A1720; --muted:#69647A; --line:#E2DFEA;
+  --jr:#F08A3E; --int:#3E9CC4; --sr:#8B5BC9; --on-lvl:#17141C;
+  --good:#23945A; --bad:#D43F57;
+  --key-w:#FFFFFF; --key-b:#1A1720; --key-edge:#CFCBD9; --key-ink:#1A1720;
+  --display:'Bricolage Grotesque', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --body:'Nunito', system-ui, -apple-system, sans-serif;
+  --score:'Playfair Display', Georgia, 'Times New Roman', serif;
+  --lvl:var(--jr);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131118; --surface:#1E1B25; --ink:#F1EEF6; --muted:#A39DB0; --line:#302B3A;
+  --jr:#F59A55; --int:#5BB4DA; --sr:#A97FE3; --good:#45B97A; --bad:#EF6478;
+  --key-w:#ECE8F2; --key-b:#08070B; --key-edge:#3A3545; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#131118; --surface:#1E1B25; --ink:#F1EEF6; --muted:#A39DB0; --line:#302B3A;
+  --jr:#F59A55; --int:#5BB4DA; --sr:#A97FE3; --good:#45B97A; --bad:#EF6478;
+  --key-w:#ECE8F2; --key-b:#08070B; --key-edge:#3A3545; color-scheme:dark }
+body.l1{--lvl:var(--jr)} body.l2{--lvl:var(--int)} body.l3{--lvl:var(--sr)}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.app{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:3px solid var(--lvl);outline-offset:3px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
+
+/* keyboard */
+.kb{position:relative;height:96px;display:flex;border-radius:4px 4px 12px 12px;overflow:hidden;
+  border:2px solid var(--key-b);border-top-width:10px;background:var(--key-b)}
+.kb .w{flex:1;background:var(--key-w);border-right:1px solid var(--key-edge);border-radius:0 0 6px 6px;transition:background .15s}
+.kb .w:last-child{border-right:0}
+.kb .b{position:absolute;top:0;width:4.2%;height:58%;background:var(--key-b);border-radius:0 0 4px 4px;transform:translateX(-50%);transition:background .15s;z-index:2}
+.kb .lit{background:var(--lvl)!important}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand h1{font-size:clamp(2.2rem,8vw,3.1rem);font-weight:800;letter-spacing:-.02em}
+.brand h1 em{font-family:var(--score);font-style:italic;color:var(--lvl);font-weight:800}
+.brand p{margin:4px 0 0;color:var(--muted);font-weight:600}
+.icon-btn{padding:8px 12px;border-radius:999px;border:2px solid var(--line);font-weight:800;font-size:.85rem;color:var(--muted);background:var(--surface)}
+
+/* levels */
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lv{padding:12px 8px;border-radius:14px;border:2px solid var(--line);background:var(--surface);text-align:center;transition:transform .12s}
+.lv b{display:block;font-family:var(--display);font-size:1.1rem}
+.lv span{font-size:.8rem;color:var(--muted);font-weight:700}
+.lv[aria-pressed="true"]{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
+.lv[aria-pressed="true"] span{color:var(--on-lvl);opacity:.75}
+.lv:active{transform:scale(.97)}
+.label{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--muted)}
+
+/* modes */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mode{text-align:left;padding:18px 16px 16px;border-radius:18px;background:var(--surface);border:2px solid var(--line);
+  display:flex;flex-direction:column;gap:6px;min-height:150px;transition:transform .12s,border-color .12s;position:relative;overflow:hidden}
+.mode:hover{border-color:var(--lvl);transform:translateY(-2px)}
+a.mode{color:inherit;text-decoration:none}
+.mode .glyph{font-family:var(--score);font-style:italic;font-size:2.1rem;line-height:1;color:var(--lvl)}
+.mode h3{font-size:1.25rem}
+.mode p{margin:0;color:var(--muted);font-size:.9rem;font-weight:600}
+.mode .best{margin-top:auto;font-size:.8rem;font-weight:800;color:var(--ink)}
+@media (max-width:420px){.mode{min-height:132px;padding:14px 12px}.mode h3{font-size:1.1rem}}
+
+details.list{background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:4px 16px}
+details.list summary{cursor:pointer;padding:12px 0;font-family:var(--display);font-size:1.1rem;font-weight:800}
+.terms{display:grid;grid-template-columns:minmax(0,40%) minmax(0,1fr);gap:0 14px;padding-bottom:12px}
+.terms dt,.terms dd{margin:0;padding:8px 0;border-top:1px solid var(--line)}
+.terms dt{font-weight:800}
+.terms dd{color:var(--muted);font-weight:600}
+
+/* play */
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bar h2{font-size:1.3rem;flex:1;min-width:0}
+.chip{padding:4px 10px;border-radius:999px;background:var(--lvl);color:var(--on-lvl);font-weight:800;font-size:.78rem}
+.back{font-weight:800;padding:6px 12px 6px 6px;border-radius:999px;color:var(--muted)}
+.back:hover{color:var(--ink)}
+.stats{display:flex;justify-content:space-between;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;font-size:.95rem}
+.stats strong{color:var(--ink)}
+.dots{display:flex;gap:6px}
+.dots i{flex:1;height:8px;border-radius:4px;background:var(--line)}
+.dots i.ok{background:var(--good)} .dots i.no{background:var(--bad)} .dots i.now{background:var(--lvl)}
+.timer{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.timer i{display:block;height:100%;background:var(--lvl);transform-origin:left}
+
+.qcard{background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:26px 20px;text-align:center;display:flex;flex-direction:column;gap:8px}
+.qcard .ask{color:var(--muted);font-weight:800;font-size:.85rem;letter-spacing:.06em;text-transform:uppercase}
+.qcard .big{font-family:var(--display);font-size:clamp(1.7rem,7vw,2.5rem);font-weight:800;overflow-wrap:anywhere}
+.qcard .big.meaning{font-family:var(--body);font-size:clamp(1.2rem,5vw,1.5rem);font-weight:800}
+.sign{font-family:var(--score);font-style:italic;font-weight:800;color:var(--lvl);font-size:2rem;line-height:1}
+.opts{display:grid;gap:10px}
+.opt{text-align:left;padding:14px 16px;border-radius:14px;background:var(--surface);border:2px solid var(--line);font-weight:700;transition:transform .1s,border-color .1s}
+.opt:hover:not(:disabled){border-color:var(--lvl)}
+.opt:active:not(:disabled){transform:scale(.98)}
+.opt.term{font-family:var(--display);font-size:1.15rem;font-weight:800}
+.opt.ok{background:var(--good);border-color:var(--good);color:#fff}
+.opt.no{background:var(--bad);border-color:var(--bad);color:#fff;animation:shake .35s}
+.opt:disabled{cursor:default}
+
+/* flashcard */
+.flip{perspective:1200px;cursor:pointer;background:none;width:100%;padding:0}
+.flip .inner{position:relative;height:280px;transition:transform .5s cubic-bezier(.3,1.4,.5,1);transform-style:preserve-3d}
+.flip.on .inner{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:22px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;border:2px solid var(--line);background:var(--surface)}
+.face.back{transform:rotateY(180deg);background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
+.face .big{font-family:var(--display);font-size:clamp(1.8rem,8vw,2.7rem);font-weight:800;overflow-wrap:anywhere}
+.face .mean{font-size:clamp(1.2rem,5vw,1.55rem);font-weight:800;line-height:1.3}
+.face small{color:var(--muted);font-weight:700}
+.face.back small{color:var(--on-lvl);opacity:.7}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{padding:14px 16px;border-radius:14px;font-weight:800;font-size:1rem;border:2px solid var(--line);background:var(--surface);text-align:center}
+.btn.go{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
+.btn:active{transform:scale(.98)}
+
+/* ladder */
+.ladder{display:flex;flex-direction:column-reverse;gap:6px}
+.step{height:42px;border-radius:10px;border:2px dashed var(--line);display:flex;align-items:center;padding:0 14px;font-family:var(--display);font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.step.filled{border-style:solid;border-color:var(--lvl);background:var(--lvl);color:var(--on-lvl);animation:pop .3s}
+.ends{display:flex;justify-content:space-between;color:var(--muted);font-weight:800;font-size:.8rem}
+.tiles{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.tile{padding:10px 14px;border-radius:12px;border:2px solid var(--line);background:var(--surface);font-family:var(--display);font-weight:800;font-size:1.05rem}
+.tile.no{border-color:var(--bad);color:var(--bad);animation:shake .35s}
+
+/* finish */
+.done{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:30px 20px}
+.done h2{font-family:var(--score);font-style:italic;font-size:clamp(2.4rem,10vw,3.4rem);color:var(--lvl)}
+.done .num{font-family:var(--display);font-size:1.4rem;font-weight:800}
+.stars{font-size:2.2rem;letter-spacing:.2em;color:var(--lvl)} .stars .off{color:var(--line)}
+.missed{width:100%;text-align:left}
+.missed .terms{padding:0}
+.done .row{width:100%}
+
+/* falling notes */
+.mode.wide{grid-column:1/-1;min-height:0}
+.field{position:relative;height:470px;border-radius:22px;background:var(--surface);border:2px solid var(--line);overflow:hidden;user-select:none}
+.staff{position:absolute;inset:16% 0 auto;height:28%;display:flex;flex-direction:column;justify-content:space-between}
+.staff i{display:block;height:2px;background:var(--line)}
+.lane-line{position:absolute;top:0;bottom:0;border-left:2px dashed var(--line)}
+.note{position:absolute;top:92px;left:50%;translate:-50% 0;z-index:3;transition:left .15s ease-out}
+.note::before{content:"";position:absolute;right:12px;bottom:50%;width:5px;height:86px;background:var(--ink);border-radius:3px}
+.note::after{content:"";position:absolute;left:calc(100% - 12px);bottom:calc(50% + 34px);width:22px;height:52px;border-right:6px solid var(--ink);border-radius:0 100% 0 0 / 0 100% 0 0}
+.note .head{display:block;background:var(--lvl);border-radius:50%;padding:20px 28px;min-width:130px;max-width:210px;transform:rotate(-14deg);box-shadow:0 5px 0 var(--line)}
+.note .head span{display:block;transform:rotate(14deg);text-align:center;font-family:var(--display);font-weight:800;font-size:1.2rem;line-height:1.1;color:var(--on-lvl);overflow-wrap:anywhere}
+.note.pop{animation:popout .35s forwards}
+.note.splat .head{background:var(--bad)} .note.splat .head span{color:#fff}
+.buckets{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 12px 12px;z-index:4}
+.bucket{height:118px;display:flex;align-items:center;justify-content:center;padding:12px 16px;text-align:center;font-weight:800;font-size:1rem;line-height:1.2;
+  color:var(--key-ink);background:var(--key-w);border:3px solid var(--key-edge);border-top:8px solid var(--key-edge);border-radius:6px 6px 34px 34px;transition:transform .12s,border-color .12s}
+.bucket.here{border-color:var(--lvl);transform:translateY(-4px)}
+.bucket.ok{background:var(--good);border-color:var(--good);color:#fff}
+.bucket.no{background:var(--bad);border-color:var(--bad);color:#fff;animation:shake .35s}
+.hint{margin:0;text-align:center;color:var(--muted);font-weight:600;font-size:.9rem}
+.hint kbd{font-family:var(--body);font-weight:800;border:1.5px solid var(--line);border-radius:6px;padding:0 6px;background:var(--surface)}
+.lives{color:var(--bad);letter-spacing:.15em} .lives .off{opacity:.2}
+.tempo-now{font-family:var(--score);font-style:italic;color:var(--lvl)}
+@keyframes popout{to{scale:.3;opacity:0}}
+/* ear detective */
+.listen-row{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;padding-top:6px}
+.listen{width:92px;height:92px;border-radius:50%;background:var(--lvl);color:var(--on-lvl);font-size:2.1rem;display:grid;place-items:center;box-shadow:0 5px 0 var(--line);transition:transform .1s}
+.listen:active{transform:translateY(3px)}
+.listen.playing{animation:pulse .9s ease-in-out infinite}
+.plain{padding:8px 14px;border-radius:999px;border:2px solid var(--line);font-weight:800;font-size:.85rem;color:var(--muted);background:var(--surface)}
+.feedback{margin:0;text-align:center;font-weight:700;color:var(--muted)} .feedback b{color:var(--ink);font-family:var(--display)}
+.tune-name{color:var(--muted);font-weight:700;font-size:.9rem}
+.now{margin:0;font-weight:800;color:var(--muted);min-height:1.5em}
+.now.on{color:var(--lvl)}
+.plain.playing{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+/* word snake */
+.snake{gap:14px}
+.snake .clue{padding:10px 14px;gap:2px;border-bottom:0;border-radius:18px 18px 0 0;margin-bottom:-14px}
+.snake .board canvas{border-radius:0 0 14px 14px}
+@media (hover:hover) and (pointer:fine){.snake .pad{display:none}}
+.snake .feedback{min-height:1.5em;font-size:.95rem}
+.board{position:relative;display:flex;justify-content:center;touch-action:none;user-select:none}
+.board canvas{display:block;border-radius:14px;border:2px solid var(--line);background:var(--surface)}
+.cover{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;font-family:var(--display);font-weight:800;font-size:1.2rem;pointer-events:none}
+.cover[hidden]{display:none}
+.cover span{background:var(--surface);border:2px solid var(--lvl);border-radius:14px;padding:10px 16px}
+.pad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,52px);gap:6px;justify-content:center}
+.pad button{border-radius:12px;border:2px solid var(--line);background:var(--surface);font-size:1.3rem;font-weight:800}
+.pad button:active{background:var(--lvl);color:var(--on-lvl)}
+.pad .u{grid-column:2}.pad .l{grid-column:1;grid-row:2}.pad .d{grid-column:2;grid-row:2}.pad .r{grid-column:3;grid-row:2}
+@keyframes pulse{50%{transform:scale(1.08)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@keyframes pop{0%{transform:scale(.9)}60%{transform:scale(1.04)}100%{transform:scale(1)}}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:20}
+/* phones: smaller keyboard, everything a game needs fits on one screen, no double-tap zoom */
+button,.board,.field{touch-action:manipulation}
+.board{touch-action:none}
+@media (max-width:520px){
+  .app{gap:16px} .kb{height:64px;border-top-width:7px}
+  body{padding-block:12px 32px}
+  .field{height:clamp(380px,calc(100svh - 230px),470px)}
+  .buckets{gap:6px;padding:0 6px 6px}
+  .bucket{min-width:0;height:104px;padding:8px 4px;font-size:.85rem;overflow-wrap:anywhere;border-width:2px;border-top-width:6px;border-radius:6px 6px 26px 26px}
+  .note .head{min-width:104px;max-width:150px;padding:14px 18px}
+  .note .head span{font-size:1rem}
+  .ladder{gap:4px} .step{height:32px;font-size:.95rem}
+  .tile{padding:8px 12px;font-size:.95rem}
+  .qcard{padding:20px 16px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<canvas id="fx"></canvas>
+<div class="app">
+  <div class="kb" id="kb" aria-label="Piano keyboard, tap to play"></div>
+  <div id="stage"></div>
+</div>
+
+<script>
+// ---------- word lists (from the Theory 2 sheets). l: 1 = Junior, 2 = Intermediate, 3 = Senior only
+const T = [
+ ["8va / 8vb (ottava alta / bassa)","at the octave; play an octave higher or lower",3],
+ ["a tempo","return to the original speed",2],
+ ["accelerando (accel.)","gradually getting faster",2],
+ ["accent","emphasize the attack on the note",2],
+ ["Adagio","slow, at ease: not as slow as Largo, but slower than Andante",1],
+ ["alla","in the style of",3],
+ ["alla marcia","in the style of a march",3],
+ ["Allegretto","lively and moderately fast; slower than Allegro",1],
+ ["Allegro","quick and lively",1],
+ ["Andante","somewhat slow, at a walking tempo",1],
+ ["animato","animated, with increased life",3],
+ ["assai","very",3],
+ ["attacca","go on to the next part without a break",3],
+ ["ben, bene","well, good",3],
+ ["brillante","brilliant, sparkling, bright",2],
+ ["brio","life, spirit",3],
+ ["cantabile","in a singing style",1],
+ ["col, coll', colla","with the",3],
+ ["coll' 8va","add an octave; play in octaves",3],
+ ["con","with",2],
+ ["con brio","with spirit, vigour, vivacity",2],
+ ["con espressione","with expression, expressively",2],
+ ["con grazia","in a graceful, elegant style",2],
+ ["con moto","with animated movement",2],
+ ["crescendo","gradually getting louder",1,"cresc."],
+ ["D.C. (da capo)","repeat from the beginning",1],
+ ["D.S. (dal segno)","repeat from the sign",1],
+ ["decrescendo, diminuendo","gradually getting softer",1,"decresc."],
+ ["dolce","sweetly",1],
+ ["e, ed","and",3],
+ ["espressivo","with expression, expressively",2],
+ ["fermata","pause; hold the note or rest longer than its value, as long as the performer chooses",1],
+ ["fine","the end; end the piece",1],
+ ["forte","loud, strong",1,"f"],
+ ["forte-piano","beginning loudly, but immediately soft",2,"fp"],
+ ["fortissimo","very loud",1,"ff"],
+ ["grave","slow, ponderous in movement, serious in expression",3],
+ ["grazioso","in a graceful, elegant style",3],
+ ["Larghetto","rather slow and broad, but not as slow as Largo",2],
+ ["Largo","large, broad, extremely slow and stately",1],
+ ["legato","smooth and connected",1],
+ ["leggiero","light, nimble, rapid",2],
+ ["Lento","slow",2],
+ ["loco","return to the proper pitch (used after 8va or 8vb)",2],
+ ["M.D. (mano destra)","right hand",3],
+ ["M.S. (mano sinistra)","left hand",3],
+ ["M.M.","Mälzel's Metronome",3],
+ ["ma","but",3],
+ ["Maestoso","majestically, with dignity",2],
+ ["marcato","marked, accented",3],
+ ["meno","less",2],
+ ["meno mosso","less movement",2],
+ ["mezzo forte","moderately loud",1,"mf"],
+ ["mezzo piano","moderately soft",1,"mp"],
+ ["Moderato","at a moderate pace, between Andante and Allegro",1],
+ ["molto","much, very, extremely",2],
+ ["morendo","dying away in tempo and tone",3],
+ ["mosso","movement",3],
+ ["moto","motion",3],
+ ["non","not",2],
+ ["non troppo","not too much",3],
+ ["ottava","octave",3],
+ ["pesante","heavily",3],
+ ["pianissimo","very soft",1,"pp"],
+ ["piano","soft",1,"p"],
+ ["più","more",3],
+ ["più mosso","with more movement, rather faster",2],
+ ["poco","little, a little",2],
+ ["poco a poco","little by little",2],
+ ["Prestissimo","extremely fast",1],
+ ["Presto","fast, rapid, faster than Allegro",1],
+ ["quasi","almost, as if",3],
+ ["rallentando (rall.)","gradually getting slower",1,"rall."],
+ ["repeat sign","repeat the music inside the double bars",1],
+ ["ritardando (rit.)","gradually getting slower",1,"rit."],
+ ["scherzando","playful, light, and lively",2],
+ ["sempre","always, continually",2],
+ ["senza","without",2],
+ ["simile","like, the same as",2],
+ ["slur","play the notes smoothly and connected",2],
+ ["sostenuto","sustained",2],
+ ["staccato","detached, separated, disconnected",1],
+ ["subito","suddenly",2],
+ ["tempo primo","return to the original speed",2],
+ ["tempo rubato","flexible tempo, not performed in strict time",3],
+ ["tenuto","held, sustained",2],
+ ["tie","hold the sound for the combined value of the notes",2],
+ ["tranquillo","in a quiet, calm style",2],
+ ["troppo","too much",2]
+].map(([t,m,l,s])=>({t,m,l,s}));
+const TEMPO=["Largo","Larghetto","Lento","Adagio","Andante","Moderato","Allegretto","Allegro","Presto","Prestissimo"];
+// words that mean (nearly) the same thing are never used to trick each other
+const TWINS=[["a tempo","tempo primo"],["rallentando (rall.)","ritardando (rit.)"],["con espressione","espressivo"],["con grazia","grazioso"],
+ ["alla","quasi","alla marcia"],["sostenuto","tenuto"],["mosso","moto","con moto"],["8va / 8vb (ottava alta / bassa)","ottava","coll' 8va","loco"],
+ ["con","col, coll', colla"],["legato","slur"],["brio","con brio"],["troppo","non troppo"],["meno","meno mosso"],["più","più mosso"],["poco","poco a poco"],["Lento","Largo","grave"]];
+const LEVELS={1:"Junior",2:"Intermediate",3:"Senior"};
+
+// ---------- helpers
+const $=s=>document.querySelector(s);
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const store={get(k,d){try{const v=localStorage.getItem("pp:"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+             set(k,v){try{localStorage.setItem("pp:"+k,JSON.stringify(v))}catch(e){}}};
+// this is for learning Italian, so the English sign names in the syllabus are left out everywhere
+const ENG=["accent","repeat sign","slur","tie"],terms=l=>T.filter(x=>x.l<=l&&!ENG.includes(x.t));
+const tempos=l=>TEMPO.filter(n=>T.find(x=>x.t===n).l<=l);
+// a meaning that names another word ("slower than Allegro") must never sit next to that word
+const names=(a,b)=>{const w=b.t.split(/\s*[,/(]\s*/)[0].trim().toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  return new RegExp("(^|[^a-zà-ÿ])"+w+"([^a-zà-ÿ]|$)","i").test(a.m)};
+const twin=(a,b)=>a.m===b.m||TWINS.some(g=>g.includes(a.t)&&g.includes(b.t))||names(a,b)||names(b,a);
+let lvl=store.get("lvl",1), muted=store.get("mute",false), timers=[];
+const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
+const clearTimers=()=>{stopSound();timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);if(keyH){removeEventListener("keydown",keyH);keyH=null}};
+let keyH=null;
+const TOUCH=matchMedia("(hover:none) and (pointer:coarse)").matches; // phones and tablets: no keyboard hints
+let raf=0;
+
+// ---------- sound + keyboard
+const WHITES=[60,62,64,65,67,69,71,72,74,76,77,79,81,83,84];
+const BLACKS=[[61,1],[63,2],[66,4],[68,5],[70,6],[73,8],[75,9],[78,11],[80,12],[82,13]];
+const kb=$("#kb");
+kb.innerHTML=WHITES.map(n=>`<div class="w" data-n="${n}"></div>`).join("")+
+  BLACKS.map(([n,i])=>`<div class="b" data-n="${n}" style="left:${i/WHITES.length*100}%"></div>`).join("");
+kb.addEventListener("pointerdown",e=>{const n=e.target.dataset.n;if(n)tone(+n)});
+let ctx,master,bus=null;
+function audio(){if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();master.gain.value=1;const lim=ctx.createDynamicsCompressor();lim.threshold.value=-6;lim.knee.value=0;lim.ratio.value=12;lim.attack.value=.003;lim.release.value=.15;master.connect(lim);lim.connect(ctx.destination)}if(ctx.state!=="running")ctx.resume();return ctx}
+// phones (iPhones most of all) only allow sound and speech that start during a tap,
+// so every tap wakes the sound up, and the first tap also wakes up the speaking voice
+let spoke=false;
+function unlock(){
+  try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){} // play even with the silent switch on
+  try{audio();const b=ctx.createBuffer(1,1,22050),s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0)}catch(e){}
+  if(!spoke&&window.speechSynthesis){spoke=true;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}catch(e){}}
+}
+["touchend","pointerup","click","keydown"].forEach(t=>addEventListener(t,unlock,{capture:true,passive:true}));
+function tone(n,when=0,dur=1.1,vol=.22,dest){
+  setTimeout(()=>{const k=kb.querySelector(`[data-n="${n}"]`);if(k){k.classList.add("lit");setTimeout(()=>k.classList.remove("lit"),260)}},when*1000);
+  if(muted)return;
+  try{
+    audio();
+    const t0=ctx.currentTime+when, f=440*2**((n-69)/12), g=ctx.createGain();
+    g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(vol,t0+.012);g.gain.exponentialRampToValueAtTime(.0008,t0+dur);
+    g.connect(dest||master);
+    [[1,"triangle",1],[2,"sine",.3],[3,"sine",.12]].forEach(([h,type,v])=>{
+      const o=ctx.createOscillator(),gg=ctx.createGain();o.type=type;o.frequency.value=f*h;gg.gain.value=v;o.connect(gg).connect(g);o.start(t0);o.stop(t0+dur)});
+  }catch(e){}
+}
+const yay=step=>{const n=WHITES[Math.min(step,WHITES.length-1)];tone(n);tone(n+4>84?n:n+4,.06,.9,.1)};
+const oops=()=>{tone(48,0,.5,.18);tone(49,.02,.5,.14)};
+const fanfare=()=>[60,64,67,72,76,79,84].forEach((n,i)=>tone(n,i*.08,1.4,.16));
+
+// ---------- confetti
+const fx=$("#fx"),fc=fx.getContext("2d");let bits=[];
+function confetti(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  fx.width=innerWidth;fx.height=innerHeight;
+  const cs=getComputedStyle(document.body),cols=["--jr","--int","--sr","--good"].map(v=>cs.getPropertyValue(v).trim());
+  bits=Array.from({length:90},()=>({x:Math.random()*fx.width,y:-20-Math.random()*fx.height*.5,vx:(Math.random()-.5)*2,vy:2+Math.random()*3,
+    r:Math.random()*6,c:cols[Math.random()*4|0],note:Math.random()<.3,a:Math.random()*6}));
+  const step=()=>{fc.clearRect(0,0,fx.width,fx.height);bits.forEach(b=>{b.x+=b.vx;b.y+=b.vy;b.a+=.1;fc.fillStyle=b.c;
+      if(b.note){fc.font="bold 22px Georgia";fc.fillText("♪",b.x,b.y)}else{fc.save();fc.translate(b.x,b.y);fc.rotate(b.a);fc.fillRect(-5,-3,10,6);fc.restore()}});
+    bits=bits.filter(b=>b.y<fx.height+30);if(bits.length)requestAnimationFrame(step);else fc.clearRect(0,0,fx.width,fx.height)};
+  step();
+}
+
+// ---------- screens
+const stage=$("#stage");
+function setLevel(l){lvl=l;store.set("lvl",l);document.body.className="l"+l}
+function bar(title,extra=""){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl]}</span>${extra}</div>`}
+function wireBack(){$("#back").onclick=home}
+const best=m=>store.get(`best:${lvl}:${m}`,null);
+
+function home(){
+  clearTimers();
+  const b={quiz:best("quiz"),clock:best("clock"),ladder:best("ladder"),fall:best("fall"),ear:best("ear"),snake:best("snake")};
+  stage.innerHTML=`<div class="app" style="gap:22px">
+   <div class="top"><div class="brand"><h1>Piano <em>Parole</em></h1><p>Learn the Italian words in your music.</p></div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="icon-btn" href="./" style="text-decoration:none">← All games</a>
+     <button class="icon-btn" id="mute" aria-pressed="${muted}">${muted?"Sound off":"Sound on"}</button></div></div>
+   <div style="display:flex;flex-direction:column;gap:8px"><span class="label">Pick your level</span>
+    <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l]}</b><span>${terms(l).length} words</span></button>`).join("")}</div></div>
+   <div style="display:flex;flex-direction:column;gap:8px"><span class="label">Pick a game</span>
+   <div class="modes">
+    <button class="mode wide" data-m="falling"><span class="glyph">sfz</span><h3>Falling Notes</h3><p>Steer each falling note into the bucket with the right meaning. It speeds up as you go!</p><span class="best">${b.fall!=null?`Best: ${b.fall}`:"Not played yet"}</span></button>
+    <button class="mode" data-m="cards"><span class="glyph">p</span><h3>Flashcards</h3><p>Tap to flip. Keep going until you know them all.</p></button>
+    <button class="mode" data-m="quiz"><span class="glyph">mf</span><h3>Quiz</h3><p>10 questions. Go for three stars.</p><span class="best">${b.quiz!=null?`Best: ${b.quiz}/10`:"Not played yet"}</span></button>
+    <button class="mode" data-m="clock"><span class="glyph">ff</span><h3>Beat the Clock</h3><p>How many can you get in 60 seconds?</p><span class="best">${b.clock!=null?`Best: ${b.clock}`:"Not played yet"}</span></button>
+    <button class="mode" data-m="ladder"><span class="glyph">accel.</span><h3>Tempo Ladder</h3><p>Put the tempos in order, slow to fast.</p><span class="best">${b.ladder!=null?`Best: ${b.ladder.toFixed(1)}s`:"Not played yet"}</span></button>
+    <button class="mode wide" data-m="ear"><span class="glyph">cresc.</span><h3>Ear Detective</h3><p>Listen to a mystery tune. Is it fast or slow, loud or soft, bouncy or smooth? Pick the word that matches.</p><span class="best">${b.ear!=null?`Best: ${b.ear}/10`:"Not played yet"}</span></button>
+    <button class="mode wide" data-m="snake"><span class="glyph">legato</span><h3>Word Snake</h3><p>Read the meaning, then steer the snake to eat the right word. Every right word makes it longer!</p><span class="best">${b.snake!=null?`Best: ${b.snake}`:"Not played yet"}</span></button>
+    <a class="mode wide" href="intervals.html"><span class="glyph">8va</span><h3>Piano Intervalli →</h3><p>A new ear game: hear two piano notes and name the interval between them.</p></a>
+   </div></div>
+   <details class="list"><summary>All ${LEVELS[lvl]} words (${terms(lvl).length})</summary>
+    <dl class="terms">${terms(lvl).map(x=>`<dt>${esc(x.t)}</dt><dd>${esc(x.m)}</dd>`).join("")}</dl></details>
+  </div>`;
+  stage.querySelectorAll(".lv").forEach(el=>el.onclick=()=>{setLevel(+el.dataset.l);tone(WHITES[(+el.dataset.l)*2]);home()});
+  stage.querySelectorAll(".mode").forEach(el=>el.onclick=()=>({cards,quiz,clock,ladder,falling,ear,snake})[el.dataset.m]());
+  $("#mute").onclick=()=>{muted=!muted;store.set("mute",muted);home()};
+}
+
+// question builder
+function makeQ(x,pool,n=4){
+  const dir=Math.random()<.5?"tm":"mt";
+  const others=shuffle(pool.filter(y=>y!==x&&!twin(x,y)));
+  const picks=[];for(const y of others){if(picks.length===n-1)break;if(!picks.some(p=>twin(p,y)))picks.push(y)}
+  return {x,dir,opts:shuffle([x,...picks])};
+}
+function qHTML(q,ask){
+  const tm=q.dir==="tm";
+  return `<div class="qcard"><span class="ask">${ask||(tm?"What does this mean?":"Which word means…")}</span>
+   ${tm&&q.x.s?`<span class="sign">${esc(q.x.s)}</span>`:""}
+   <div class="big ${tm?"":"meaning"}">${esc(tm?q.x.t:q.x.m)}</div></div>
+   <div class="opts">${q.opts.map((o,i)=>`<button class="opt ${tm?"":"term"}" data-i="${i}">${esc(tm?o.m:o.t)}</button>`).join("")}</div>`;
+}
+function answer(q,onPick){
+  stage.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
+    const pick=q.opts[+b.dataset.i],ok=pick===q.x;
+    stage.querySelectorAll(".opt").forEach(o=>{o.disabled=true;if(q.opts[+o.dataset.i]===q.x)o.classList.add("ok")});
+    if(!ok)b.classList.add("no");
+    onPick(ok);
+  });
+}
+
+// --- flashcards
+function cards(){
+  clearTimers();
+  let deck=shuffle(terms(lvl)),known=0,total=deck.length;
+  const draw=()=>{
+    if(!deck.length)return finish({title:"Bravissimo!",line:`You know all ${total} ${LEVELS[lvl]} words.`,again:cards,party:true});
+    const x=deck[0];
+    stage.innerHTML=`<div class="app">${bar("Flashcards")}
+     <div class="stats"><span>Known <strong>${known}</strong> of ${total}</span><span>${deck.length} left</span></div>
+     <div class="timer"><i style="transform:scaleX(${known/total})"></i></div>
+     <button class="flip" id="card" aria-label="Flip card"><div class="inner">
+       <div class="face">${x.s?`<span class="sign">${esc(x.s)}</span>`:""}<div class="big">${esc(x.t)}</div><small>Tap to flip</small></div>
+       <div class="face back"><small>${esc(x.t)}</small><div class="mean">${esc(x.m)}</div></div></div></button>
+     <div class="row"><button class="btn" id="again">Still learning</button><button class="btn go" id="got">I know it!</button></div></div>`;
+    wireBack();
+    $("#card").onclick=()=>{$("#card").classList.toggle("on");tone(WHITES[4+Math.random()*5|0],0,.6,.1)};
+    $("#got").onclick=()=>{deck.shift();known++;yay(Math.round(known/total*14));draw()};
+    $("#again").onclick=()=>{const c=deck.shift();deck.splice(Math.min(3,deck.length),0,c);tone(55,0,.5,.12);draw()};
+  };
+  draw();
+}
+
+// --- quiz
+function quiz(){
+  clearTimers();
+  const pool=terms(lvl),qs=shuffle(pool).slice(0,10).map(x=>makeQ(x,pool));
+  let i=0,score=0,streak=0,res=[],missed=[];
+  const draw=()=>{
+    if(i===qs.length){
+      const prev=best("quiz");if(prev==null||score>prev)store.set(`best:${lvl}:quiz`,score);
+      const stars=score>=9?3:score>=7?2:score>=5?1:0;
+      return finish({title:stars===3?"Bravissimo!":stars>=1?"Bravo!":"Ancora!",stars,line:`${score} out of 10`,missed,again:quiz,party:stars>=2});
+    }
+    stage.innerHTML=`<div class="app">${bar("Quiz")}
+     <div class="dots">${qs.map((_,k)=>`<i class="${res[k]===true?"ok":res[k]===false?"no":k===i?"now":""}"></i>`).join("")}</div>
+     <div class="stats"><span>Question <strong>${i+1}</strong> of 10</span><span>${streak>1?`♪ ${streak} in a row`:""}</span></div>
+     ${qHTML(qs[i])}</div>`;
+    wireBack();
+    answer(qs[i],ok=>{res[i]=ok;if(ok){score++;streak++;yay(streak)}else{streak=0;oops();missed.push(qs[i].x)}i++;later(draw,ok?800:1700)});
+  };
+  draw();
+}
+
+// --- beat the clock
+function clock(){
+  clearTimers();
+  const pool=terms(lvl),LEN=60;let score=0,streak=0,start=0,last=null,over=false,missed=[];
+  const next=()=>{
+    if(over)return;
+    let x;do{x=pool[Math.random()*pool.length|0]}while(x===last&&pool.length>1);last=x;
+    const q=makeQ(x,pool);
+    $("#q").innerHTML=qHTML(q);
+    answer(q,ok=>{if(over)return;if(ok){score++;streak++;yay(streak)}else{streak=0;oops();if(!missed.includes(x))missed.push(x)}
+      $("#score").textContent=score;later(next,ok?300:1100)});
+  };
+  stage.innerHTML=`<div class="app">${bar("Beat the Clock")}
+   <div class="stats"><span>Score <strong id="score">0</strong></span><span><strong id="secs">${LEN}</strong>s</span></div>
+   <div class="timer"><i id="tb"></i></div><div id="q" style="display:flex;flex-direction:column;gap:14px"></div></div>`;
+  wireBack();
+  start=performance.now();
+  const tick=()=>{const left=Math.max(0,LEN-(performance.now()-start)/1000);
+    $("#tb").style.transform=`scaleX(${left/LEN})`;$("#secs").textContent=Math.ceil(left);
+    if(left<=0){over=true;clearTimers();const prev=best("clock"),rec=prev==null||score>prev;if(rec)store.set(`best:${lvl}:clock`,score);
+      return finish({title:score>=15?"Bravissimo!":score>=8?"Bravo!":"Ancora!",line:`${score} correct in 60 seconds`,sub:rec&&score>0?"New best score!":prev!=null?`Your best: ${prev}`:"",missed,again:clock,party:rec&&score>0})}
+    raf=requestAnimationFrame(tick)};
+  next();raf=requestAnimationFrame(tick);
+}
+
+// --- tempo ladder
+function ladder(){
+  clearTimers();
+  const order=tempos(lvl);let tiles=shuffle(order),placed=0,mistakes=0,t0=0;
+  while(tiles.join()===order.join())tiles=shuffle(order);
+  const draw=()=>{
+    // on a phone the tiles go above the ladder so they never scroll off the screen
+    const tl=`<div class="tiles">${tiles.filter(n=>!order.slice(0,placed).includes(n)).map(n=>`<button class="tile" data-n="${esc(n)}">${esc(n)}</button>`).join("")}</div>`,
+          narrow=matchMedia("(max-width:520px)").matches;
+    stage.innerHTML=`<div class="app">${bar("Tempo Ladder")}
+     <div class="stats"><span>Tap the <strong>slowest</strong> tempo left</span><span>Mistakes <strong id="mis">${mistakes}</strong></span></div>
+     ${narrow?tl:""}
+     <div class="ends"><span>↑ Fastest</span></div>
+     <div class="ladder">${order.map((n,k)=>`<div class="step ${k<placed?"filled":""}" style="margin-left:${k*(36/order.length)}%">${k<placed?esc(n):k+1}</div>`).join("")}</div>
+     <div class="ends"><span>↓ Slowest</span></div>
+     ${narrow?"":tl}</div>`;
+    wireBack();
+    stage.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{
+      if(!t0)t0=performance.now();
+      if(b.dataset.n===order[placed]){placed++;yay(placed*1.4|0);
+        if(placed===order.length){const secs=(performance.now()-t0)/1000,prev=best("ladder"),rec=mistakes===0&&(prev==null||secs<prev);
+          if(rec)store.set(`best:${lvl}:ladder`,secs);
+          return later(()=>finish({title:mistakes===0?"Bravissimo!":"Bravo!",line:`${secs.toFixed(1)} seconds, ${mistakes} mistake${mistakes===1?"":"s"}`,
+            sub:rec?"New best time!":mistakes?"Finish with no mistakes to set a best time.":prev!=null?`Your best: ${prev.toFixed(1)}s`:"",
+            list:order,again:ladder,party:mistakes===0}),350)}
+        draw()}
+      else{mistakes++;oops();b.classList.remove("no");void b.offsetWidth;b.classList.add("no");$("#mis").textContent=mistakes}
+    });
+  };
+  draw();
+}
+
+// --- falling notes
+const SPEEDS=[[0,"Andante"],[5,"Moderato"],[10,"Allegretto"],[16,"Allegro"],[24,"Presto"],[32,"Prestissimo"]];
+const tempoAt=n=>SPEEDS.filter(s=>n>=s[0]).pop()[1];
+function falling(){
+  clearTimers();
+  const pool=terms(lvl),X=[100/6,50,500/6];
+  let score=0,streak=0,lives=3,y=0,q=null,last=null,locked=true,over=false,prevT=0,missed=[],lane=1,fast=false;
+  stage.innerHTML=`<div class="app">${bar("Falling Notes")}
+   <div class="stats"><span>Score <strong id="fs">0</strong></span><span class="tempo-now" id="ft"></span><span class="lives" id="fl"></span></div>
+   <div class="field" id="field"><div class="staff"><i></i><i></i><i></i><i></i><i></i></div>
+     <div class="lane-line" style="left:33.33%"></div><div class="lane-line" style="left:66.66%"></div>
+     <div class="note" id="note"><div class="head"><span id="nword"></span></div></div>
+     <div class="buckets" id="buckets"></div></div>
+   <p class="hint">${TOUCH?"Tap a bucket to send the note into it":"Steer with <kbd>←</kbd> <kbd>→</kbd> &nbsp;·&nbsp; drop fast with <kbd>↓</kbd> or <kbd>Space</kbd> &nbsp;·&nbsp; or click a bucket"}</p></div>`;
+  wireBack();
+  const note=$("#note"),field=$("#field"),bk=$("#buckets");
+  const tempoNow=()=>tempoAt(score);
+  const hud=()=>{$("#fs").textContent=score;$("#ft").textContent=tempoNow()+(streak>2?`  ♪${streak}`:"");
+    $("#fl").innerHTML=[0,1,2].map(k=>`<span class="${k<lives?"":"off"}">♥</span>`).join("")};
+  const dur=()=>Math.max(2.6,7.5*Math.pow(.955,score));
+  const travel=()=>field.clientHeight-92-note.offsetHeight-bk.offsetHeight+34;
+  const setLane=l=>{if(locked||over)return;lane=Math.max(0,Math.min(2,l));note.style.left=X[lane]+"%";
+    bk.querySelectorAll(".bucket").forEach((b,i)=>b.classList.toggle("here",i===lane))};
+  const spawn=()=>{
+    let x;do{x=pool[Math.random()*pool.length|0]}while(x===last&&pool.length>1);last=x;
+    q=makeQ(x,pool,3);
+    $("#nword").textContent=x.t;
+    y=0;fast=false;note.className="note";note.style.transform="translateY(0)";
+    bk.innerHTML=q.opts.map((o,i)=>`<button class="bucket" data-i="${i}">${esc(o.m)}</button>`).join("");
+    bk.querySelectorAll(".bucket").forEach(b=>b.onclick=()=>{setLane(+b.dataset.i);if(!locked)fast=true});
+    locked=false;setLane(1);
+  };
+  const lose=()=>{streak=0;lives--;oops();if(!missed.includes(q.x))missed.push(q.x)};
+  const land=()=>{
+    locked=true;const ok=q.opts[lane]===q.x,bs=bk.querySelectorAll(".bucket");
+    bs.forEach((b,i)=>{b.classList.remove("here");if(q.opts[i]===q.x)b.classList.add("ok")});
+    if(ok){score++;streak++;yay(streak);note.classList.add("pop")}
+    else{bs[lane].classList.add("no");note.classList.add("splat");lose()}
+    hud();later(()=>lives>0?spawn():end(),ok?450:1500);
+  };
+  const end=()=>{over=true;clearTimers();
+    const prev=best("fall"),rec=score>0&&(prev==null||score>prev);if(rec)store.set(`best:${lvl}:fall`,score);
+    finish({title:score>=20?"Bravissimo!":score>=8?"Bravo!":"Ancora!",line:`${score} word${score===1?"":"s"} caught`,
+      sub:`You reached ${tempoNow()}. `+(rec?"New best score!":prev!=null?`Your best: ${prev}`:""),missed,again:falling,party:rec})};
+  const tick=t=>{
+    const dt=prevT?Math.min(.05,(t-prevT)/1000):0;prevT=t;
+    if(!locked&&!over){
+      y+=dt/dur()*(fast?7:1);
+      if(y>=1){y=1;land()}
+      note.style.transform=`translateY(${y*travel()}px)`;
+    }
+    raf=requestAnimationFrame(tick)};
+  keyH=e=>{const k=e.key.toLowerCase();
+    if(k==="arrowleft"||k==="a"){e.preventDefault();setLane(lane-1)}
+    else if(k==="arrowright"||k==="d"){e.preventDefault();setLane(lane+1)}
+    else if(k==="arrowdown"||k===" "||k==="s"){e.preventDefault();if(!locked)fast=true}
+    else if("123".includes(k)&&k){e.preventDefault();setLane(+k-1)}};
+  addEventListener("keydown",keyH);
+  hud();spawn();raf=requestAnimationFrame(tick);
+}
+
+// --- ear detective
+// c: what kind of sound clue; k: group (words in the same group sound alike and are never offered together)
+const HEAR={
+ "Largo":{c:"tempo",k:"slow",bpm:44},"grave":{c:"tempo",k:"slow",bpm:46},"Lento":{c:"tempo",k:"slow",bpm:52},
+ "Larghetto":{c:"tempo",k:"slow",bpm:56},"Adagio":{c:"tempo",k:"slow",bpm:66},
+ "Andante":{c:"tempo",k:"walk",bpm:84},"Moderato":{c:"tempo",k:"walk",bpm:104},
+ "Allegretto":{c:"tempo",k:"quick",bpm:126},"Allegro":{c:"tempo",k:"quick",bpm:150},
+ "Presto":{c:"tempo",k:"vfast",bpm:190},"Prestissimo":{c:"tempo",k:"vfast",bpm:220},
+ "pianissimo":{c:"vol",k:"level",v:0},"piano":{c:"vol",k:"level",v:1},"mezzo piano":{c:"vol",k:"level",v:2},
+ "mezzo forte":{c:"vol",k:"level",v:3},"forte":{c:"vol",k:"level",v:4},"fortissimo":{c:"vol",k:"level",v:5},
+ "crescendo":{c:"vol",k:"cresc",shape:"cresc"},"decrescendo, diminuendo":{c:"vol",k:"dim",shape:"dim"},
+ "morendo":{c:"vol",k:"dim",shape:"dim",tempo:"rit"},"forte-piano":{c:"vol",k:"fp",shape:"fp"},
+ "staccato":{c:"touch",k:"stacc",art:"stacc"},"legato":{c:"touch",k:"leg",art:"leg"},
+ "accent":{c:"touch",k:"acc",shape:"acc"},"marcato":{c:"touch",k:"acc",shape:"acc"},
+ "ritardando (rit.)":{c:"touch",k:"rit",tempo:"rit"},"rallentando (rall.)":{c:"touch",k:"rit",tempo:"rit"},
+ "accelerando (accel.)":{c:"touch",k:"accel",tempo:"accel"},"a tempo":{c:"touch",k:"atempo",tempo:"atempo"},
+ "fermata":{c:"touch",k:"ferm",ferm:true}
+};
+const TUNES=[
+ {name:"Up and Down",n:[60,64,67,64,65,69,72,69,67,65,64,62,60]},
+ {name:"Hop Skip",n:[67,64,60,64,67,72,71,67,69,65,62,67,60]},
+ {name:"Rainy Day",n:[69,72,76,74,72,71,69,71,72,74,71,68,69]},
+ {name:"Little Waltz",n:[72,67,64,67,72,74,72,71,69,67,65,64,60]},
+ {name:"Staircase",n:[79,77,76,74,72,74,76,77,79,76,72,71,72]},
+ {name:"Mountain Path",n:[62,65,69,74,72,69,70,67,64,65,69,61,62]}
+];
+const VOL=[.018,.05,.11,.21,.36,.55];
+const volAt=x=>{const i=Math.min(4,Math.floor(x));return VOL[i]+(VOL[i+1]-VOL[i])*(x-i)};
+function stopSound(){if(bus){try{bus.disconnect()}catch(e){}bus=null}}
+function playSpec(h,tune){
+  stopSound();if(muted)return 0;
+  try{audio()}catch(e){return 0}
+  bus=ctx.createGain();bus.connect(master);
+  const M=(tune||TUNES[0]).n;const N=h.c==="tempo"?[...M.slice(0,6),M[M.length-1]]:M;let t=.08;
+  N.forEach((n,i)=>{const p=i/(N.length-1);
+    let bpm=h.bpm||100;
+    if(h.tempo==="accel")bpm=70+150*p;
+    if(h.tempo==="rit")bpm=p<.45?110:110-65*(p-.45)/.55;
+    if(h.tempo==="atempo")bpm=i>=4&&i<8?110-15*(i-3):110;
+    let beats=i===N.length-1?2:1;const held=h.ferm&&i===(N.length>>1);if(held)beats=5;
+    const spb=60/bpm;
+    let v=h.v!=null?VOL[h.v]:VOL[3];
+    if(h.shape==="cresc")v=volAt(5*p);
+    if(h.shape==="dim")v=volAt(5*(1-p));
+    if(h.shape==="fp")v=i===0?VOL[5]:VOL[1];
+    if(h.shape==="acc")v=i%2===0?VOL[5]:VOL[1];
+    const d=h.art==="stacc"?.09:h.art==="leg"?spb*beats*1.7+.2:held?spb*beats:Math.min(spb*beats*.8,1.5);
+    tone(n,t,d,v,bus);
+    if(h.shape==="fp"&&i===0)tone(48,t,d,VOL[4],bus);
+    t+=spb*beats});
+  return t;
+}
+function okPair(a,b){const A=HEAR[a.t],B=HEAR[b.t];
+  if(A.c!==B.c)return false;
+  if(A.k==="level"&&B.k==="level")return Math.abs(A.v-B.v)>=4;
+  if(A.k===B.k)return false;
+  if(A.bpm&&B.bpm)return Math.max(A.bpm,B.bpm)/Math.min(A.bpm,B.bpm)>=2;
+  return true}
+function earPicks(x,pool){
+  const key=y=>HEAR[y.t].k==="level"?"lv"+HEAR[y.t].v:HEAR[y.t].k;
+  const c=shuffle(pool.filter(y=>y!==x&&okPair(x,y))),picks=[];
+  for(const y of c)if(picks.length<2&&picks.every(p=>key(p)!==key(y)))picks.push(y);
+  for(const y of c)if(picks.length<2&&!picks.includes(y))picks.push(y);
+  for(const y of shuffle(pool.filter(y=>HEAR[y.t].c!==HEAR[x.t].c)))if(picks.length<2)picks.push(y);
+  return picks}
+function ear(){
+  clearTimers();
+  if(muted){muted=false;store.set("mute",false)}
+  const pool=terms(lvl).filter(x=>HEAR[x.t]);
+  let list=[];while(list.length<10)list.push(...shuffle(pool));
+  const rounds=list.slice(0,10).map(x=>({x,tune:TUNES[Math.random()*TUNES.length|0],opts:shuffle([x,...earPicks(x,pool)])}));
+  let i=0,score=0,res=[],missed=[],done=false,pick=()=>{},lt=0;
+  const idle=()=>{clearTimeout(lt);const b=$("#listen"),pl=$("#plain"),now=$("#now");if(!b)return;
+    b.classList.remove("playing");b.textContent="▶";pl.classList.remove("playing");pl.textContent="Hear the plain tune";
+    now.classList.remove("on");now.textContent="Press ▶ to hear the mystery tune"};
+  const listen=(h,tune,plain)=>{const b=$("#listen"),pl=$("#plain"),now=$("#now");if(!b)return;idle();const len=playSpec(h,tune);
+    if(plain){pl.classList.add("playing");pl.textContent="♪ Playing…";now.textContent="Now playing: the plain tune (normal speed and volume)"}
+    else{b.classList.add("playing");b.textContent="♪";now.textContent="Now playing: the mystery tune"}
+    now.classList.add("on");lt=setTimeout(idle,len*1000)};
+  const draw=()=>{
+    const r=rounds[i];done=false;
+    stage.innerHTML=`<div class="app">${bar("Ear Detective")}
+     <div class="dots">${rounds.map((_,k)=>`<i class="${res[k]===true?"ok":res[k]===false?"no":k===i?"now":""}"></i>`).join("")}</div>
+     <div class="stats"><span>Case <strong>${i+1}</strong> of 10</span><span>Solved <strong>${score}</strong></span></div>
+     <div class="qcard"><span class="ask">Listen closely. Which word is it?</span><span class="tune-name">Tune: ${r.tune.name}</span>
+       <div class="listen-row"><button class="listen" id="listen" aria-label="Play the mystery tune">▶</button>
+       <button class="plain" id="plain">Hear the plain tune</button></div>
+       <p class="now" id="now">Press ▶ to hear the mystery tune</p></div>
+     <div class="opts">${r.opts.map((o,k)=>`<button class="opt term" data-i="${k}">${esc(o.t)}</button>`).join("")}</div>
+     <p class="feedback" id="fb" hidden></p>
+     <button class="btn go" id="next" hidden>${i===9?"See results":"Next case →"}</button>
+     ${TOUCH?"":`<p class="hint">Press <kbd>Space</kbd> to listen and <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> to answer</p>`}</div>`;
+    wireBack();
+    $("#listen").onclick=()=>listen(HEAR[r.x.t],r.tune);
+    $("#plain").onclick=()=>listen({},r.tune,true);
+    pick=k=>{if(done||!r.opts[k])return;done=true;stopSound();idle();
+      const ok=r.opts[k]===r.x;res[i]=ok;
+      stage.querySelectorAll(".opt").forEach(o=>{o.disabled=true;if(r.opts[+o.dataset.i]===r.x)o.classList.add("ok")});
+      stage.querySelectorAll(".dots i")[i].className=ok?"ok":"no";
+      if(ok){score++;yay(score)}else{stage.querySelector(`.opt[data-i="${k}"]`).classList.add("no");oops();missed.push(r.x)}
+      stopSound();sayIt(r.x.t,r.x.m);const fb=$("#fb");fb.hidden=false;fb.innerHTML=`<b>${esc(r.x.t)}</b> means ${esc(r.x.m)}.`+(r.x.t==="a tempo"?" That's why it slowed down first, then went back to the speed it started at.":"")+" Press ▶ to hear it again.";
+      const nx=$("#next");nx.hidden=false;nx.focus()};
+    stage.querySelectorAll(".opt").forEach(o=>o.onclick=()=>pick(+o.dataset.i));
+    $("#next").onclick=()=>{if(window.speechSynthesis)speechSynthesis.cancel();i++;i<rounds.length?draw():end()};
+    later(()=>listen(HEAR[r.x.t],r.tune),450);
+  };
+  const end=()=>{const prev=best("ear");if(prev==null||score>prev)store.set(`best:${lvl}:ear`,score);
+    const stars=score>=9?3:score>=7?2:score>=5?1:0;
+    finish({title:stars===3?"Bravissimo!":stars>=1?"Bravo!":"Ancora!",stars,line:`You solved ${score} of 10 cases`,missed,again:ear,party:stars>=2})};
+  keyH=e=>{if(e.key===" "&&e.target.id!=="next"){e.preventDefault();$("#listen")?.click()}
+    else if(["1","2","3"].includes(e.key)){e.preventDefault();pick(+e.key-1)}};
+  addEventListener("keydown",keyH);
+  draw();
+}
+
+// --- word snake
+// --- say a word aloud: the term with an Italian voice, then (optionally) a short meaning in English
+const short=t=>t.split(/\s*[,/(]\s*/)[0].trim();
+function voice(re){return speechSynthesis.getVoices().find(v=>re.test(v.lang))}
+function sayIt(t,m){if(muted||!window.speechSynthesis)return;
+  const p=t.match(/\(([^)/]+)/),w=/^\d/.test(t)?"ottava":short(t).includes(".")?(p?p[1].trim():""):short(t);
+  speechSynthesis.cancel();
+  if(w){const u=new SpeechSynthesisUtterance(w.replace(/' ?8va/,"'ottava"));u.lang="it-IT";u.rate=.85;const v=voice(/^it/i);if(v)u.voice=v;speechSynthesis.speak(u)}
+  if(m){const u=new SpeechSynthesisUtterance(m.split(/[:;]/)[0].trim());u.lang="en-US";u.rate=.95;const v=voice(/^en/i);if(v)u.voice=v;speechSynthesis.speak(u)}}
+function snake(){
+  clearTimers();
+  const pool=terms(lvl),C=14,DIRS={u:[0,-1],d:[0,1],l:[-1,0],r:[1,0]};
+  let R=15,score=0,streak=0,lives=3,last=null,q=null,foods=[],body=[],dir=[1,0],turns=[],started=false,over=false,
+      waitTill=0,acc=0,prevT=0,missed=[],flash=null;
+  stage.innerHTML=`<div class="app snake">${bar("Word Snake")}
+   <div class="stats"><span>Score <strong id="ss">0</strong></span><span class="tempo-now" id="st"></span><span class="lives" id="sl"></span></div>
+   <div class="qcard clue"><span class="ask">Eat the word that means…</span><div class="big meaning" id="clue"></div></div>
+   <div class="board" id="board"><canvas id="sn"></canvas><div class="cover" id="cover"><span>${TOUCH?"Swipe or tap an arrow to start":"Press an arrow key or swipe to start"}</span></div></div>
+   <p class="feedback" id="sf"></p>
+   <div class="pad">${["u↑","l←","d↓","r→"].map(([k,a])=>`<button class="${k}" data-d="${k}" aria-label="Go ${({u:"up",d:"down",l:"left",r:"right"})[k]}">${a}</button>`).join("")}</div>
+   <p class="hint">${TOUCH?"Swipe on the board or tap the arrows":"Steer with <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, swipe, or the buttons"} &nbsp;·&nbsp; a wrong word or a crash costs a heart</p></div>`;
+  wireBack();
+  const cv=$("#sn"),g=cv.getContext("2d"),board=$("#board");
+  // fill the width, then fit as many rows as the screen has room for
+  const appEl=stage.querySelector(".app");
+  const appBox=appEl.getBoundingClientRect(),bBox=board.getBoundingClientRect();
+  const avail=innerHeight-(bBox.top-appBox.top)-(appBox.bottom-bBox.bottom)-24;
+  let cell=Math.min(44,Math.floor((board.clientWidth-4)/C));
+  if(avail/cell<13)cell=Math.max(20,Math.floor(avail/13));
+  R=Math.max(13,Math.min(22,Math.floor(avail/cell)));const dpr=devicePixelRatio||1;
+  const clueCard=stage.querySelector(".clue");clueCard.style.width=C*cell+4+"px";clueCard.style.alignSelf="center";
+  cv.width=C*cell*dpr;cv.height=R*cell*dpr;cv.style.width=C*cell+"px";cv.style.height=R*cell+"px";g.scale(dpr,dpr);
+  if(appEl.getBoundingClientRect().bottom>innerHeight)scrollTo(0,appEl.getBoundingClientRect().top+scrollY-8);
+  const fs=Math.max(12,Math.round(cell*.55)),font=`800 ${fs}px Nunito, system-ui, sans-serif`;
+  const col=v=>getComputedStyle(document.body).getPropertyValue(v).trim();
+  const hud=()=>{$("#ss").textContent=score;$("#st").textContent=tempoAt(score)+(streak>2?`  ♪${streak}`:"");
+    $("#sl").innerHTML=[0,1,2].map(k=>`<span class="${k<lives?"":"off"}">♥</span>`).join("")};
+  const resetSnake=()=>{const y=R>>1;body=[[4,y],[3,y],[2,y]];dir=[1,0];turns=[]};
+  const onSnake=(x,y)=>body.some(b=>b[0]===x&&b[1]===y);
+  const place=()=>{
+    g.font=font;foods=[];const [hx,hy]=body[0];
+    for(const o of [q.x,...q.opts.filter(o=>o!==q.x)]){
+      const w=Math.min(C,Math.ceil((g.measureText(short(o.t)).width+cell*.9)/cell));
+      for(let tries=0;tries<400;tries++){
+        const x=Math.random()*(C-w+1)|0,y=1+Math.random()*(R-2)|0;
+        let bad=false;
+        for(let i=0;i<w&&!bad;i++){const cx=x+i;
+          if(onSnake(cx,y))bad=true;
+          for(let s=1;s<=4;s++)if(cx===hx+dir[0]*s&&y===hy+dir[1]*s)bad=true}
+        if(!bad&&foods.some(f=>Math.abs(f.y-y)<2&&x<f.x+f.w+1&&f.x<x+w+1))bad=true;
+        if(!bad){foods.push({o,x,y,w});break}
+      }
+    }
+  };
+  const newQ=()=>{let x;do{x=pool[Math.random()*pool.length|0]}while(x===last&&pool.length>1);last=x;
+    q=makeQ(x,pool,3);$("#clue").textContent=x.m;$("#sf").innerHTML="";flash=null;place();
+    later(hint,1100)};
+  let hintT=0;
+  const hint=()=>{clearTimeout(hintT);stopSound();if(!started||over||!q||!HEAR[q.x.t])return;const want=q;
+    const len=playSpec(HEAR[q.x.t],TUNES[Math.random()*TUNES.length|0]);
+    if(len)hintT=setTimeout(()=>{if(q===want&&!over&&document.contains(cv))hint()},len*1000+1500)};
+  const lose=why=>{streak=0;lives--;oops();hud();waitTill=performance.now()+1600;
+    if(lives<=0){over=true;clearTimeout(hintT);stopSound();later(end,1400)}};
+  const step=()=>{
+    while(turns.length){const t=turns.shift();if(t[0]!==-dir[0]||t[1]!==-dir[1]){dir=t;break}}
+    const nx=body[0][0]+dir[0],ny=body[0][1]+dir[1];
+    const f=foods.find(f=>f.y===ny&&nx>=f.x&&nx<f.x+f.w);
+    const hitWall=nx<0||ny<0||nx>=C||ny>=R,hitSelf=body.slice(0,-1).some(b=>b[0]===nx&&b[1]===ny);
+    if(hitWall||hitSelf){flash={crash:true};$("#sf").innerHTML="Crash! Try again.";lose();
+      later(()=>{if(!over){resetSnake();place();flash=null;$("#sf").innerHTML=""}},1500);return}
+    body.unshift([nx,ny]);
+    if(f&&f.o===q.x){score++;streak++;yay(streak);sayIt(q.x.t);hud();foods=[];later(()=>{if(!over)newQ()},180)}
+    else{body.pop();
+      if(f){flash={wrong:f.o};sayIt(q.x.t);$("#sf").innerHTML=`Not that one. It was <b>${esc(short(q.x.t))}</b>`;
+        if(!missed.includes(q.x))missed.push(q.x);lose();later(()=>{if(!over)newQ()},1500)}}
+  };
+  const draw=()=>{
+    const ink=col("--ink"),line=col("--line"),lv=col("--lvl"),kw=col("--key-w"),kbk=col("--key-b"),edge=col("--key-edge");
+    g.clearRect(0,0,C*cell,R*cell);
+    g.fillStyle=line;for(let x=1;x<C;x++)for(let y=1;y<R;y++){g.beginPath();g.arc(x*cell,y*cell,1.5,0,7);g.fill()}
+    g.font=font;g.textAlign="center";g.textBaseline="middle";
+    for(const f of foods){
+      const right=flash&&flash.wrong&&f.o===q.x,wrong=flash&&flash.wrong===f.o;
+      g.fillStyle=right?col("--good"):wrong?col("--bad"):col("--surface");g.strokeStyle=right?col("--good"):wrong?col("--bad"):lv;g.lineWidth=2.5;
+      g.beginPath();g.roundRect(f.x*cell+2,f.y*cell+2,f.w*cell-4,cell-4,cell/2);g.fill();g.stroke();
+      g.fillStyle=right||wrong?"#fff":ink;g.fillText(short(f.o.t),(f.x+f.w/2)*cell,f.y*cell+cell/2+1)}
+    body.slice(1).forEach(([x,y],i)=>{const black=i%2===1;
+      g.fillStyle=black?kbk:kw;g.strokeStyle=black?kbk:edge;g.lineWidth=1.5;
+      g.beginPath();g.roundRect(x*cell+2,y*cell+2,cell-4,cell-4,5);g.fill();g.stroke()});
+    const [hx,hy]=body[0];g.fillStyle=flash&&flash.crash?col("--bad"):lv;
+    g.beginPath();g.roundRect(hx*cell+1,hy*cell+1,cell-2,cell-2,cell/2.5);g.fill();
+    g.fillStyle=col("--on-lvl");const ex=hx*cell+cell/2+dir[0]*cell*.18,ey=hy*cell+cell/2+dir[1]*cell*.18;
+    [[-1],[1]].forEach(([s])=>{g.beginPath();g.arc(ex+dir[1]*s*cell*.2,ey+dir[0]*s*cell*.2,cell*.08+1,0,7);g.fill()});
+  };
+  const end=()=>{clearTimers();
+    const prev=best("snake"),rec=score>0&&(prev==null||score>prev);if(rec)store.set(`best:${lvl}:snake`,score);
+    finish({title:score>=20?"Bravissimo!":score>=8?"Bravo!":"Ancora!",line:`${score} word${score===1?"":"s"} eaten`,
+      sub:`You reached ${tempoAt(score)}. `+(rec?"New best score!":prev!=null?`Your best: ${prev}`:""),missed,again:snake,party:rec})};
+  const turn=k=>{const d=DIRS[k];if(!d||over)return;
+    if(!started){started=true;$("#cover").hidden=true;hint()}
+    if(turns.length<2)turns.push(d)};
+  const loop=t=>{const dt=prevT?Math.min(100,t-prevT):0;prevT=t;
+    if(started&&!over&&t>=waitTill&&foods.length){acc+=dt;const ms=Math.max(105,240*Math.pow(.96,score));
+      while(acc>=ms){acc-=ms;step();if(t<waitTill||!foods.length){acc=0;break}}}
+    else acc=0;
+    draw();raf=requestAnimationFrame(loop)};
+  keyH=e=>{const k=({arrowup:"u",w:"u",arrowdown:"d",s:"d",arrowleft:"l",a:"l",arrowright:"r",d:"r"})[e.key.toLowerCase()];
+    if(k){e.preventDefault();turn(k)}};
+  addEventListener("keydown",keyH);
+  stage.querySelectorAll(".pad button").forEach(b=>b.onpointerdown=e=>{e.preventDefault();turn(b.dataset.d)});
+  let sx=0,sy=0;board.onpointerdown=e=>{sx=e.clientX;sy=e.clientY};
+  board.onpointerup=e=>{const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
+    turn(Math.abs(dx)>Math.abs(dy)?(dx>0?"r":"l"):(dy>0?"d":"u"))};
+  resetSnake();newQ();hud();raf=requestAnimationFrame(loop);
+}
+
+// --- finish
+function finish({title,line,sub="",stars,missed=[],list,again,party}){
+  clearTimers();
+  stage.innerHTML=`<div class="app">${bar("Finished")}<div class="done">
+    <h2>${title}</h2>
+    ${stars!=null?`<div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(k=>`<span class="${k<stars?"":"off"}">★</span>`).join("")}</div>`:""}
+    <div class="num">${line}</div>${sub?`<div style="color:var(--muted);font-weight:700">${sub}</div>`:""}
+    ${list?`<div class="missed"><span class="label">Slow to fast</span><dl class="terms">${list.map((n,k)=>`<dt>${k+1}</dt><dd style="color:var(--ink);font-weight:800">${esc(n)}</dd>`).join("")}</dl></div>`:""}
+    ${missed.length?`<div class="missed"><span class="label">Words to practise</span><dl class="terms">${missed.map(x=>`<dt>${esc(x.t)}</dt><dd>${esc(x.m)}</dd>`).join("")}</dl></div>`:""}
+    <div class="row"><button class="btn" id="home">All games</button><button class="btn go" id="again">Play again</button></div></div></div>`;
+  wireBack();$("#home").onclick=home;$("#again").onclick=again;
+  if(party){fanfare();confetti()}
+}
+
+setLevel(lvl);home();
+</script>
+
+</html>

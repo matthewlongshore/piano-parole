@@ -305,7 +305,7 @@ function home(){
   const bq=best("quiz"),bc=best("clock");
   stage.innerHTML=`<div class="app">
    <div class="top"><div class="brand"><h1>Piano <em>Intervalli</em></h1><p>Hear two notes. Name the gap.</p></div>
-     <div class="top-btns"><a class="icon-btn" href="./">Italian words →</a>
+     <div class="top-btns"><a class="icon-btn" href="./">← All games</a>
      <button class="icon-btn" id="mute" aria-pressed="${muted}">${muted?"Sound off":"Sound on"}</button></div></div>
    <div class="group"><span class="label">Pick your level</span>
     <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l]}</b><span>${ivs(l).length} intervals</span></button>`).join("")}</div></div>
