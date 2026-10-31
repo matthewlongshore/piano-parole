@@ -103,10 +103,20 @@ function play(n,when=0){
   }catch(e){}
 }
 kb.addEventListener("pointerdown",e=>{const n=e.target.closest("[data-n]")?.dataset.n;if(n)load().then(()=>play(+n))});
-// hovering a game card plays a little hello on a computer
-document.querySelectorAll(".game").forEach((g,i)=>g.addEventListener("pointerenter",e=>{
+// hovering any game card plays the next chord of a long tune: a 12-bar blues, then a jazz turnaround, then a classical ending, then round again
+const C7=[48,58,64,67],F7=[53,57,63,69],G7=[55,59,65,67];
+const TUNE=[
+  ...[C7,F7,C7,C7,F7,F7,C7,C7,G7,F7,C7,G7].map(c=>[c,.06]),                      // blues in C
+  ...[[50,60,65,69],[55,59,65,69],[48,59,64,67],[57,61,67,70],
+      [50,60,65,69],[55,59,65,68],[48,59,62,64,67]].map(c=>[c,.09]),                // jazz: ii V I VI, ii V I
+  ...[[48,64,67,72],[53,65,69,72],[55,65,67,71],[48,64,67,72],
+      [57,64,69,72],[50,62,65,69],[55,62,65,71],[48,60,64,67,72]].map(c=>[c,0])     // classical: I IV V7 I, vi ii V7 I
+];
+let step=0;
+document.querySelectorAll(".game").forEach(g=>g.addEventListener("pointerenter",e=>{
   if(e.pointerType!=="mouse"||!ctx||ctx.state!=="running")return;
-  [[60,64,67],[60,67,72]][i].forEach((n,j)=>play(n,j*.07));
+  const[notes,roll]=TUNE[step];step=(step+1)%TUNE.length;
+  notes.forEach((n,j)=>play(n,j*roll));
 }));
 load();
 </script>
