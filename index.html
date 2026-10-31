@@ -345,7 +345,16 @@ kb.innerHTML=WHITES.map(n=>`<div class="w" data-n="${n}"></div>`).join("")+
   BLACKS.map(([n,i])=>`<div class="b" data-n="${n}" style="left:${i/WHITES.length*100}%"></div>`).join("");
 kb.addEventListener("pointerdown",e=>{const n=e.target.dataset.n;if(n)tone(+n)});
 let ctx,master,bus=null;
-function audio(){if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();master.gain.value=1;const lim=ctx.createDynamicsCompressor();lim.threshold.value=-6;lim.knee.value=0;lim.ratio.value=12;lim.attack.value=.003;lim.release.value=.15;master.connect(lim);lim.connect(ctx.destination)}if(ctx.state==="suspended")ctx.resume();return ctx}
+function audio(){if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();master.gain.value=1;const lim=ctx.createDynamicsCompressor();lim.threshold.value=-6;lim.knee.value=0;lim.ratio.value=12;lim.attack.value=.003;lim.release.value=.15;master.connect(lim);lim.connect(ctx.destination)}if(ctx.state!=="running")ctx.resume();return ctx}
+// phones (iPhones most of all) only allow sound and speech that start during a tap,
+// so every tap wakes the sound up, and the first tap also wakes up the speaking voice
+let spoke=false;
+function unlock(){
+  try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){} // play even with the silent switch on
+  try{audio();const b=ctx.createBuffer(1,1,22050),s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0)}catch(e){}
+  if(!spoke&&window.speechSynthesis){spoke=true;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}catch(e){}}
+}
+["touchend","pointerup","click","keydown"].forEach(t=>addEventListener(t,unlock,{capture:true,passive:true}));
 function tone(n,when=0,dur=1.1,vol=.22,dest){
   setTimeout(()=>{const k=kb.querySelector(`[data-n="${n}"]`);if(k){k.classList.add("lit");setTimeout(()=>k.classList.remove("lit"),260)}},when*1000);
   if(muted)return;
