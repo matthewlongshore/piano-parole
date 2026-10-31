@@ -237,8 +237,8 @@ function light(n,when=0,ms=500){
   later(()=>{const k=kb.querySelector(`[data-n="${n}"]`);if(k){k.classList.add("lit");setTimeout(()=>k.classList.remove("lit"),ms)}},when*1000);
 }
 // play one note now (+when seconds), held for dur seconds
-function note(n,when=0,dur=1.6,vol=.8){
-  light(n,when,Math.min(dur*1000,900));
+function note(n,when=0,dur=1.6,vol=.8,show=true){
+  if(show)light(n,when,Math.min(dur*1000,900));
   if(muted)return;
   try{
     audio();
@@ -257,11 +257,12 @@ function note(n,when=0,dur=1.6,vol=.8){
   }catch(e){}
 }
 // play a question's two notes; returns how long it takes in ms
-function playQ(q){
+// hidden: keys stay dark, so a question can't be answered by counting keys
+function playQ(q,hidden=false){
   stopAll();
-  if(q.w==="together"){note(q.lo,0,2);note(q.hi,0,2);return 1600}
+  if(q.w==="together"){note(q.lo,0,2,.8,!hidden);note(q.hi,0,2,.8,!hidden);return 1600}
   const [a,b]=q.w==="down"?[q.hi,q.lo]:[q.lo,q.hi];
-  note(a,0,.9);note(b,.75,1.6);return 1900;
+  note(a,0,.9,.8,!hidden);note(b,.75,1.6,.8,!hidden);return 1900;
 }
 const fanfare=()=>[48,52,55,60,64,67,72].forEach((n,i)=>note(n,i*.09,1.6,.5));
 
@@ -335,13 +336,14 @@ function askHTML(pool){
 function runQ(q,onPick){
   clearMarks();
   const btn=$("#listen");
-  const play=()=>{btn.classList.add("playing");const ms=playQ(q);later(()=>btn.classList.remove("playing"),ms)};
+  let answered=false;
+  const play=()=>{btn.classList.add("playing");const ms=playQ(q,!answered);later(()=>btn.classList.remove("playing"),ms)};
   btn.onclick=play;
   // wait for the piano (only the first time) so the very first question sounds like a piano too
   btn.disabled=true;$("#reveal").innerHTML="<small>Loading the piano…</small>";
   loadPiano().then(()=>{if(!btn.isConnected)return;btn.disabled=false;$("#reveal").innerHTML="<small>Tap ▶ to hear it again</small>";play()});
   stage.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{
-    const ok=b.dataset.id===q.iv.id;
+    answered=true;const ok=b.dataset.id===q.iv.id;
     stage.querySelectorAll(".opt").forEach(o=>{o.disabled=true;if(o.dataset.id===q.iv.id)o.classList.add("ok")});
     if(!ok){b.classList.add("no");later(()=>playQ(q),250)} // hear it again, now knowing the name
     mark(q);
