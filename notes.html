@@ -6,7 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Nunito:wght@500;700;800&family=Playfair+Display:ital,wght@1,800&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%F0%9D%84%A2&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%F0%9D%84%A2%E2%99%AF%E2%99%AD&display=block">
 <style>
 /* Same look as the other games. A note shows on the staff; tap its key on the piano. */
 :root{
@@ -49,6 +49,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 .kb .tag{position:absolute;left:50%;bottom:6px;translate:-50% 0;font-family:var(--display);font-weight:800;font-size:.85rem;color:#fff;pointer-events:none}
 .kb .b .tag{bottom:4px;font-size:.65rem}
 .playing .kb{height:150px;cursor:pointer}
+.qcard .btn{width:100%;max-width:360px;padding:10px 16px}
 
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .brand h1{font-size:clamp(2.2rem,8vw,3.1rem);font-weight:800;letter-spacing:-.02em}
@@ -119,10 +120,19 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 .shake{animation:shake .35s}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:20}
 @media (max-width:520px){
-  .app{gap:16px} .kb{height:64px;border-top-width:7px} .playing .kb{height:140px}
+  .app{gap:16px} .kb{height:64px;border-top-width:7px}
+  .playing .kb{height:150px;margin-inline:-16px;border-radius:0;border-left:0;border-right:0}
   body{padding-block:12px 32px}
   .mode{min-height:132px;padding:14px 12px}.mode h3{font-size:1.1rem}
   .kb .tag{font-size:.7rem;bottom:4px} .kb .b .tag{font-size:.5rem}
+}
+/* phone on its side: everything squeezed so staff and keyboard both fit */
+@media (orientation:landscape) and (max-height:500px){
+  body{padding-block:6px 12px} .app{max-width:none;gap:8px}
+  .playing .dots{display:none} .bar h2{font-size:1.1rem}
+  .qcard{flex-direction:row;justify-content:center;gap:12px;padding:4px 12px}
+  .staff{max-width:240px} .qcard .reveal{min-width:130px} .qcard .btn{max-width:140px}
+  .playing .kb{height:130px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -140,15 +150,35 @@ let lvl=store.get("lvl",1),muted=store.get("mute",false),timers=[],raf=0;
 const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
 const clearTimers=()=>{timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf)};
 
-// ---------- the notes. The keyboard runs C3 to C5, so: treble clef from middle C up to C5, bass clef from C3 up to middle C.
-// Only white keys for now; sharps and flats can come later.
-const LETTERS="CDEFGAB",NAT=[0,2,4,5,7,9,11];
-const WHITES=[48,50,52,53,55,57,59,60,62,64,65,67,69,71,72];
-const CLEFS={treble:WHITES.filter(n=>n>=60),bass:WHITES.filter(n=>n<=60)};
-const LEVELS={1:{name:"Junior",sub:"Treble clef",clefs:["treble"]},2:{name:"Intermediate",sub:"Bass clef",clefs:["bass"]},3:{name:"Senior",sub:"Both clefs",clefs:["treble","bass"]}};
-const letter=n=>LETTERS[NAT.indexOf(n%12)];
-const step=n=>(Math.floor(n/12)-1)*7+NAT.indexOf(n%12); // white-key count: C4 is 28, D4 29 ...
-function nextNote(last){let q;do{const clef=pick(LEVELS[lvl].clefs);q={clef,n:pick(CLEFS[clef])}}while(last&&q.n===last.n&&q.clef===last.clef);return q}
+// ---------- the notes. A note is written on a staff step (s) with an accidental (a: -1 flat, 0, 1 sharp); n is its piano key.
+// Steps count white keys: C4 is 28, D4 is 29 ... The bottom line of each staff: E4 for treble, G2 for bass.
+const LETTERS="CDEFGAB",NAT=[0,2,4,5,7,9,11],BASE={treble:30,bass:18};
+// levels only change how many notes are used. r: lowest and highest step per clef, counted from the bottom line
+// (8 is the top line; every 2 steps past the staff is one more ledger line)
+// Each clef keeps to one octave around middle C, so the on-screen piano stays short and the keys big:
+// treble is middle C up to C, bass is C up to middle C; higher levels add ledger-line notes on the middle C side.
+const LEVELS={
+  1:{name:"Junior",r:{treble:[-2,5],bass:[3,10]},acc:false},   // C to C
+  2:{name:"Intermediate",r:{treble:[-4,5],bass:[3,12]},acc:true}, // + sharps and flats, 2 ledger lines
+  3:{name:"Senior",r:{treble:[-6,5],bass:[3,14]},acc:true}};      // 3 ledger lines
+const STAVES={treble:"Treble",bass:"Bass",both:"Both"};
+let staff=store.get("staff","treble");
+const clefsOf=()=>staff==="both"?["treble","bass"]:[staff];
+const keyOf=(s,a=0)=>(Math.floor(s/7)+1)*12+NAT[s%7]+a;
+const isWhite=n=>NAT.includes(n%12);
+const nameOf=q=>LETTERS[q.s%7]+(q.a<0?"♭":q.a>0?"♯":"");
+const ODD=["C♭","F♭","E♯","B♯"]; // correct but confusing spellings are left out
+function pool(l){
+  const L=LEVELS[l],out=[];
+  for(const clef of clefsOf())for(let o=L.r[clef][0];o<=L.r[clef][1];o++)for(const a of L.acc?[-1,0,1]:[0]){
+    const s=BASE[clef]+o,q={clef,s,a,n:keyOf(s,a)};if(!ODD.includes(nameOf(q)))out.push(q)}
+  return out;
+}
+// about half the notes are plain white keys, the rest sharps and flats
+function nextNote(last){
+  const all=pool(lvl),plain=all.filter(q=>!q.a),sf=all.filter(q=>q.a);let q;
+  do{q=pick(sf.length&&Math.random()<.5?sf:plain)}while(last&&q.n===last.n&&q.clef===last.clef);return q;
+}
 
 // ---------- piano sound (Salamander Grand Piano recordings, shared with the other games)
 const SAMPLES={45:"A2",48:"C3",51:"Ds3",54:"Fs3",57:"A3",60:"C4",63:"Ds4",66:"Fs4",69:"A4",72:"C5"};
@@ -189,15 +219,20 @@ function note(n,when=0,dur=1.4,vol=.8){
 const fanfare=()=>[48,52,55,60,64,67,72].forEach((n,i)=>note(n,i*.09,1.6,.5));
 
 // ---------- keyboard. It sits on top on the home screen and moves under the staff while playing, so thumbs can reach it.
-const BLACKS=[[49,1],[51,2],[54,4],[56,5],[58,6],[61,8],[63,9],[66,11],[68,12],[70,13]];
 const kb=document.createElement("div");kb.className="kb";kb.setAttribute("aria-label","Piano keyboard");
-kb.innerHTML=WHITES.map(n=>`<div class="w" data-n="${n}"></div>`).join("")+
-  BLACKS.map(([n,i])=>`<div class="b" data-n="${n}" style="left:${i/WHITES.length*100}%"></div>`).join("");
-kb.querySelector('[data-n="60"]').classList.add("mid");
+// the keyboard covers just the notes in play for these clefs (one clef while answering), so the keys stay big
+function buildKb(clefs=clefsOf()){
+  const ns=pool(lvl).filter(q=>clefs.includes(q.clef)).map(q=>q.n);let lo=Math.min(...ns),hi=Math.max(...ns);
+  while(!isWhite(lo))lo--;while(!isWhite(hi))hi++;
+  const whites=[];for(let n=lo;n<=hi;n++)if(isWhite(n))whites.push(n);
+  const bw=60/whites.length;
+  kb.innerHTML=whites.map(n=>`<div class="w${n===60?" mid":""}" data-n="${n}"></div>`).join("")+
+    whites.slice(0,-1).filter(n=>!isWhite(n+1)).map(n=>`<div class="b" data-n="${n+1}" style="width:${bw}%;left:${(whites.indexOf(n)+1)/whites.length*100}%"></div>`).join("");
+}
 const key=n=>kb.querySelector(`[data-n="${n}"]`);
 let onKey=null; // set while a question waits for an answer
 kb.addEventListener("pointerdown",e=>{
-  const n=+e.target.closest("[data-n]")?.dataset.n;if(!n)return;
+  const n=+e.target.closest("[data-n]")?.dataset.n;if(!n)return;e.preventDefault();
   if(onKey)return onKey(n);
   note(n);const k=key(n);k.classList.add("lit");setTimeout(()=>k.classList.remove("lit"),300);
 });
@@ -207,20 +242,19 @@ const placeKb=()=>{const s=$("#kbslot");if(s)s.replaceWith(kb)};
 
 // ---------- the staff, drawn as a picture. Lines 12 units apart; each white key is half a gap.
 const GAP=12,TOP=44,BOTTOM=TOP+4*GAP;
-// the step number of each clef's bottom line: E4 for treble, G2 for bass
-const BASE={treble:30,bass:18};
 function staffSVG(q,name){
-  const off=step(q.n)-BASE[q.clef],y=BOTTOM-off*GAP/2,x=190;
+  const off=q.s-BASE[q.clef],y=BOTTOM-off*GAP/2,x=190;
   let led="";
   for(let o=-2;o>=off;o-=2)led+=`<line class="ln" x1="${x-17}" x2="${x+17}" y1="${BOTTOM-o*GAP/2}" y2="${BOTTOM-o*GAP/2}"/>`;
   for(let o=10;o<=off;o+=2)led+=`<line class="ln" x1="${x-17}" x2="${x+17}" y1="${BOTTOM-o*GAP/2}" y2="${BOTTOM-o*GAP/2}"/>`;
   const clef=q.clef==="treble"?`<text class="clef" x="12" y="${BOTTOM-1.2}" font-size="51">𝄞</text>`
                               :`<text class="clef" x="14" y="${TOP+43}" font-size="50">𝄢</text>`;
-  return `<svg class="staff" id="staff" viewBox="0 14 300 110" role="img" aria-label="A note on the ${q.clef} clef">
+  return `<svg class="staff" id="staff" viewBox="0 ${q.clef==="treble"?16:-12} 300 130" role="img" aria-label="A note on the ${q.clef} clef${q.a?(q.a<0?", flat":", sharp"):""}">
     ${[0,1,2,3,4].map(i=>`<line class="ln" x1="6" x2="294" y1="${TOP+i*GAP}" y2="${TOP+i*GAP}"/>`).join("")}
     <line class="ln" x1="6" x2="6" y1="${TOP}" y2="${BOTTOM}"/><line class="ln" x1="294" x2="294" y1="${TOP}" y2="${BOTTOM}"/>
     ${clef}${led}
     <g transform="translate(${x} ${y}) rotate(-20)"><ellipse class="head" rx="9.4" ry="6.4"/><ellipse rx="5" ry="2.8" fill="var(--surface)" transform="rotate(-25)"/></g>
+    ${q.a?`<text class="clef" x="${x-29}" y="${y+(q.a<0?4:6)}" font-size="45">${q.a<0?"♭":"♯"}</text>`:""}
     <text class="name" id="nname" x="${x+24}" y="${y+8}">${name||""}</text></svg>`;
 }
 
@@ -240,22 +274,24 @@ function confetti(){
 
 // ---------- screens
 const stage=$("#stage");
-const setLevel=l=>{lvl=l;store.set("lvl",l);document.body.className="l"+l};
-const bestKey=m=>`best:${lvl}:${m}`,best=m=>store.get(bestKey(m),null);
+const setLevel=l=>{lvl=l;store.set("lvl",l);document.body.className="l"+l;buildKb()};
+const bestKey=m=>`best:${lvl}:${staff}:${m}`,best=m=>store.get(bestKey(m),null);
 const secs=ms=>(ms/1000).toFixed(1)+"s";
-function bar(title){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl].name} · ${LEVELS[lvl].sub}</span></div>`}
+function bar(title){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl].name} · ${STAVES[staff]}</span></div>`}
 const wireBack=()=>{$("#back").onclick=home};
 function reset(){clearTimers();clearMarks();onKey=null;stage.classList.remove("playing")}
 
 function home(){
-  reset();
+  reset();buildKb();
   const bq=best("ten"),bc=best("clock");
   stage.innerHTML=`<div class="app"><div id="kbslot"></div>
    <div class="top"><div class="brand"><h1>Piano <em>Note</em></h1><p>A note shows up. Find it on the piano, fast!</p></div>
      <div class="top-btns"><a class="icon-btn" href="./">← All games</a>
      <button class="icon-btn" id="mute" aria-pressed="${muted}">${muted?"Sound off":"Sound on"}</button></div></div>
    <div class="group"><span class="label">Pick your level</span>
-    <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l].name}</b><span>${LEVELS[l].sub}</span></button>`).join("")}</div></div>
+    <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l].name}</b><span>${new Set(pool(l).map(q=>q.clef+q.s+q.a)).size} notes</span></button>`).join("")}</div></div>
+   <div class="group"><span class="label">Which staff</span>
+    <div class="levels">${Object.entries(STAVES).map(([k,v])=>`<button class="lv" data-st="${k}" aria-pressed="${k===staff}"><b>${v}</b></button>`).join("")}</div></div>
    <div class="group"><span class="label">Pick a game</span>
    <div class="modes">
     <button class="mode" data-m="ten"><span class="glyph">mf</span><h3>Ten Notes</h3><p>Find 10 notes. Get them all right, then get faster.</p><span class="best">${bq?`Best: ${bq.score}/10 in ${secs(bq.ms)}`:"Not played yet"}</span></button>
@@ -266,6 +302,7 @@ function home(){
   </div>`;
   placeKb();
   stage.querySelectorAll("[data-l]").forEach(el=>el.onclick=()=>{setLevel(+el.dataset.l);home()});
+  stage.querySelectorAll("[data-st]").forEach(el=>el.onclick=()=>{staff=el.dataset.st;store.set("staff",staff);buildKb();home()});
   stage.querySelectorAll(".mode").forEach(el=>el.onclick=()=>({ten,clock})[el.dataset.m]());
   $("#mute").onclick=()=>{muted=!muted;store.set("mute",muted);home()};
 }
@@ -273,23 +310,23 @@ function home(){
 // one question: draw the note, wait for a key. No sound until the answer, so it can't be found by ear.
 // onAnswer(ok, ms) is called once.
 function ask(q,onAnswer){
-  clearMarks();
-  $("#card").innerHTML=staffSVG(q)+`<div class="reveal" id="reveal">Tap the key for this note</div>`;
+  buildKb([q.clef]);
+  $("#card").innerHTML=staffSVG(q)+`<div class="reveal" id="reveal">Tap the key for this note</div><button class="btn go" id="next" hidden>Next →</button>`;
   const t0=performance.now();
   onKey=n=>{
-    onKey=null;const ms=performance.now()-t0,ok=n===q.n,name=letter(q.n);
+    onKey=null;const ms=performance.now()-t0,ok=n===q.n,name=nameOf(q);
     $("#staff").classList.add(ok?"ok":"no");$("#nname").textContent=name;
     if(ok){markKey(n,"ok",name);note(n);$("#reveal").innerHTML=`<b>${name}</b> · ${secs(ms)}`}
     else{
       markKey(n,"no");markKey(q.n,"ok",name);note(n,0,.5,.6);note(q.n,.45);
       $("#card").classList.add("shake");later(()=>$("#card")?.classList.remove("shake"),400);
-      $("#reveal").innerHTML=`It was <b>${name}</b>${Math.abs(n-q.n)===12||Math.abs(n-q.n)===24?" — right letter, wrong one. Check the octave!":""}`;
+      $("#reveal").innerHTML=`It was <b>${name}</b>${(n-q.n)%12===0?" — right note, wrong octave!":""}`;
     }
     onAnswer(ok,ms);
   };
 }
 function playScreen(title,top){
-  stage.innerHTML=`<div class="app">${bar(title)}${top}<div class="qcard" id="card"></div><div id="kbslot"></div><button class="btn go" id="next" hidden>Next →</button></div>`;
+  stage.innerHTML=`<div class="app">${bar(title)}${top}<div class="qcard" id="card"></div><div id="kbslot"></div></div>`;
   stage.classList.add("playing");placeKb();wireBack();
 }
 const ready=fn=>{$("#card").innerHTML=`<div class="reveal">Loading the piano…</div>`;loadPiano().then(()=>{if($("#card"))fn()})};
@@ -302,7 +339,7 @@ function ten(){
   const draw=()=>{
     if(i===10)return over();
     $("#dots").innerHTML=Array.from({length:10},(_,k)=>`<i class="${res[k]===true?"ok":res[k]===false?"no":k===i?"now":""}"></i>`).join("");
-    $("#num").textContent=i+1;$("#next").hidden=true;
+    $("#num").textContent=i+1;
     last=nextNote(last);
     ask(last,(ok,ms)=>{res[i]=ok;total+=ms;if(ok)score++;$("#time").textContent=secs(total);
       $("#dots").children[i].className=ok?"ok":"no";
