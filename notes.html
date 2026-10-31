@@ -49,6 +49,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 .kb .tag{position:absolute;left:50%;bottom:6px;translate:-50% 0;font-family:var(--display);font-weight:800;font-size:.85rem;color:#fff;pointer-events:none}
 .kb .b .tag{bottom:4px;font-size:.65rem}
 .playing .kb{height:150px;cursor:pointer}
+.qcard .side{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
 .qcard .btn{width:100%;max-width:360px;padding:10px 16px}
 
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -119,6 +120,11 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 @keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
 .shake{animation:shake .35s}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:20}
+@media (min-width:700px){
+  .playing .app{max-width:1100px;gap:14px}
+  .playing .qcard{flex-direction:row;justify-content:center;gap:40px;padding:10px 24px}
+  .staff.grand{max-width:360px} .qcard .side{width:220px}
+}
 @media (max-width:520px){
   .app{gap:16px} .kb{height:64px;border-top-width:7px}
   .playing .kb{height:150px;margin-inline:-16px;border-radius:0;border-left:0;border-right:0}
@@ -157,20 +163,25 @@ const LETTERS="CDEFGAB",NAT=[0,2,4,5,7,9,11],BASE={treble:30,bass:18};
 // (8 is the top line; every 2 steps past the staff is one more ledger line)
 // Each clef keeps to one octave around middle C, so the on-screen piano stays short and the keys big:
 // treble is middle C up to C, bass is C up to middle C; higher levels add ledger-line notes on the middle C side.
+// r is for phones (short keyboard, ledger lines only on the middle C side); big is for wider screens,
+// where both staffs show and the keyboard is long enough for ledger lines on every side.
 const LEVELS={
-  1:{name:"Junior",r:{treble:[-2,5],bass:[3,10]},acc:false},   // C to C
-  2:{name:"Intermediate",r:{treble:[-4,5],bass:[3,12]},acc:true}, // + sharps and flats, 2 ledger lines
-  3:{name:"Senior",r:{treble:[-6,5],bass:[3,14]},acc:true}};      // 3 ledger lines
+  1:{name:"Junior",r:{treble:[-2,5],bass:[3,10]},acc:false},                                       // C to C
+  2:{name:"Intermediate",r:{treble:[-4,5],bass:[3,12]},big:{treble:[-4,12],bass:[-4,12]},acc:true}, // + sharps and flats, 2 ledger lines
+  3:{name:"Senior",r:{treble:[-6,5],bass:[3,14]},big:{treble:[-6,14],bass:[-6,14]},acc:true}};      // 3 ledger lines
+const bigScreen=()=>matchMedia("(min-width:700px)").matches;
 const STAVES={treble:"Treble",bass:"Bass",both:"Both"};
 let staff=store.get("staff","treble");
-const clefsOf=()=>staff==="both"?["treble","bass"]:[staff];
+// phones stick to one staff for a whole practice; "Both" is only offered on big screens
+const myStaff=()=>staff==="both"&&!bigScreen()?"treble":staff;
+const clefsOf=()=>myStaff()==="both"?["treble","bass"]:[myStaff()];
 const keyOf=(s,a=0)=>(Math.floor(s/7)+1)*12+NAT[s%7]+a;
 const isWhite=n=>NAT.includes(n%12);
 const nameOf=q=>LETTERS[q.s%7]+(q.a<0?"♭":q.a>0?"♯":"");
 const ODD=["C♭","F♭","E♯","B♯"]; // correct but confusing spellings are left out
 function pool(l){
-  const L=LEVELS[l],out=[];
-  for(const clef of clefsOf())for(let o=L.r[clef][0];o<=L.r[clef][1];o++)for(const a of L.acc?[-1,0,1]:[0]){
+  const L=LEVELS[l],R=bigScreen()&&L.big||L.r,out=[];
+  for(const clef of clefsOf())for(let o=R[clef][0];o<=R[clef][1];o++)for(const a of L.acc?[-1,0,1]:[0]){
     const s=BASE[clef]+o,q={clef,s,a,n:keyOf(s,a)};if(!ODD.includes(nameOf(q)))out.push(q)}
   return out;
 }
@@ -241,18 +252,25 @@ function clearMarks(){kb.querySelectorAll(".mark").forEach(k=>{k.classList.remov
 const placeKb=()=>{const s=$("#kbslot");if(s)s.replaceWith(kb)};
 
 // ---------- the staff, drawn as a picture. Lines 12 units apart; each white key is half a gap.
-const GAP=12,TOP=44,BOTTOM=TOP+4*GAP;
+const GAP=12;
+// one staff with its top line at y=T: five lines and its clef
+function staffLines(clef,T){
+  return [0,1,2,3,4].map(i=>`<line class="ln" x1="6" x2="294" y1="${T+i*GAP}" y2="${T+i*GAP}"/>`).join("")+
+    `<line class="ln" x1="294" x2="294" y1="${T}" y2="${T+4*GAP}"/>`+
+    (clef==="treble"?`<text class="clef" x="12" y="${T+4*GAP-1.2}" font-size="51">𝄞</text>`:`<text class="clef" x="14" y="${T+43}" font-size="50">𝄢</text>`);
+}
+// phones: just the note's own staff. Big screens: treble and bass together, like real piano music.
 function staffSVG(q,name){
-  const off=q.s-BASE[q.clef],y=BOTTOM-off*GAP/2,x=190;
+  const grand=bigScreen(),TT=grand?60:44,BT=grand?TT+48+72:44;
+  const T=q.clef==="treble"?TT:BT,B=T+4*GAP,off=q.s-BASE[q.clef],y=B-off*GAP/2,x=grand?170:190;
   let led="";
-  for(let o=-2;o>=off;o-=2)led+=`<line class="ln" x1="${x-17}" x2="${x+17}" y1="${BOTTOM-o*GAP/2}" y2="${BOTTOM-o*GAP/2}"/>`;
-  for(let o=10;o<=off;o+=2)led+=`<line class="ln" x1="${x-17}" x2="${x+17}" y1="${BOTTOM-o*GAP/2}" y2="${BOTTOM-o*GAP/2}"/>`;
-  const clef=q.clef==="treble"?`<text class="clef" x="12" y="${BOTTOM-1.2}" font-size="51">𝄞</text>`
-                              :`<text class="clef" x="14" y="${TOP+43}" font-size="50">𝄢</text>`;
-  return `<svg class="staff" id="staff" viewBox="0 ${q.clef==="treble"?16:-12} 300 130" role="img" aria-label="A note on the ${q.clef} clef${q.a?(q.a<0?", flat":", sharp"):""}">
-    ${[0,1,2,3,4].map(i=>`<line class="ln" x1="6" x2="294" y1="${TOP+i*GAP}" y2="${TOP+i*GAP}"/>`).join("")}
-    <line class="ln" x1="6" x2="6" y1="${TOP}" y2="${BOTTOM}"/><line class="ln" x1="294" x2="294" y1="${TOP}" y2="${BOTTOM}"/>
-    ${clef}${led}
+  for(let o=-2;o>=off;o-=2)led+=`<line class="ln" x1="${x-17}" x2="${x+17}" y1="${B-o*GAP/2}" y2="${B-o*GAP/2}"/>`;
+  for(let o=10;o<=off;o+=2)led+=`<line class="ln" x1="${x-17}" x2="${x+17}" y1="${B-o*GAP/2}" y2="${B-o*GAP/2}"/>`;
+  const staves=grand?staffLines("treble",TT)+staffLines("bass",BT)+`<line class="ln" x1="6" x2="6" y1="${TT}" y2="${BT+48}" stroke-width="3"/>`
+                    :staffLines(q.clef,T)+`<line class="ln" x1="6" x2="6" y1="${T}" y2="${B}"/>`;
+  const vb=grand?"0 0 300 290":`0 ${q.clef==="treble"?16:-12} 300 130`;
+  return `<svg class="staff${grand?" grand":""}" id="staff" viewBox="${vb}" role="img" aria-label="A note on the ${q.clef} clef${q.a?(q.a<0?", flat":", sharp"):""}">
+    ${staves}${led}
     <g transform="translate(${x} ${y}) rotate(-20)"><ellipse class="head" rx="9.4" ry="6.4"/><ellipse rx="5" ry="2.8" fill="var(--surface)" transform="rotate(-25)"/></g>
     ${q.a?`<text class="clef" x="${x-29}" y="${y+(q.a<0?4:6)}" font-size="45">${q.a<0?"♭":"♯"}</text>`:""}
     <text class="name" id="nname" x="${x+24}" y="${y+8}">${name||""}</text></svg>`;
@@ -275,9 +293,9 @@ function confetti(){
 // ---------- screens
 const stage=$("#stage");
 const setLevel=l=>{lvl=l;store.set("lvl",l);document.body.className="l"+l;buildKb()};
-const bestKey=m=>`best:${lvl}:${staff}:${m}`,best=m=>store.get(bestKey(m),null);
+const bestKey=m=>`best:${lvl}:${myStaff()}:${bigScreen()?"big":"phone"}:${m}`,best=m=>store.get(bestKey(m),null);
 const secs=ms=>(ms/1000).toFixed(1)+"s";
-function bar(title){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl].name} · ${STAVES[staff]}</span></div>`}
+function bar(title){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl].name} · ${STAVES[myStaff()]}</span></div>`}
 const wireBack=()=>{$("#back").onclick=home};
 function reset(){clearTimers();clearMarks();onKey=null;stage.classList.remove("playing")}
 
@@ -291,7 +309,7 @@ function home(){
    <div class="group"><span class="label">Pick your level</span>
     <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l].name}</b><span>${new Set(pool(l).map(q=>q.clef+q.s+q.a)).size} notes</span></button>`).join("")}</div></div>
    <div class="group"><span class="label">Which staff</span>
-    <div class="levels">${Object.entries(STAVES).map(([k,v])=>`<button class="lv" data-st="${k}" aria-pressed="${k===staff}"><b>${v}</b></button>`).join("")}</div></div>
+    <div class="levels" style="grid-template-columns:repeat(${bigScreen()?3:2},1fr)">${Object.entries(STAVES).filter(([k])=>k!=="both"||bigScreen()).map(([k,v])=>`<button class="lv" data-st="${k}" aria-pressed="${k===myStaff()}"><b>${v}</b></button>`).join("")}</div></div>
    <div class="group"><span class="label">Pick a game</span>
    <div class="modes">
     <button class="mode" data-m="ten"><span class="glyph">mf</span><h3>Ten Notes</h3><p>Find 10 notes. Get them all right, then get faster.</p><span class="best">${bq?`Best: ${bq.score}/10 in ${secs(bq.ms)}`:"Not played yet"}</span></button>
@@ -310,8 +328,8 @@ function home(){
 // one question: draw the note, wait for a key. No sound until the answer, so it can't be found by ear.
 // onAnswer(ok, ms) is called once.
 function ask(q,onAnswer){
-  buildKb([q.clef]);
-  $("#card").innerHTML=staffSVG(q)+`<div class="reveal" id="reveal">Tap the key for this note</div><button class="btn go" id="next" hidden>Next →</button>`;
+  if(!bigScreen())buildKb([q.clef]); // phones: the keyboard shows only the part for this clef
+  $("#card").innerHTML=staffSVG(q)+`<div class="side"><div class="reveal" id="reveal">Tap the key for this note</div><button class="btn go" id="next" hidden>Next →</button></div>`;
   const t0=performance.now();
   onKey=n=>{
     onKey=null;const ms=performance.now()-t0,ok=n===q.n,name=nameOf(q);
@@ -327,7 +345,7 @@ function ask(q,onAnswer){
 }
 function playScreen(title,top){
   stage.innerHTML=`<div class="app">${bar(title)}${top}<div class="qcard" id="card"></div><div id="kbslot"></div></div>`;
-  stage.classList.add("playing");placeKb();wireBack();
+  stage.classList.add("playing");buildKb();placeKb();wireBack();
 }
 const ready=fn=>{$("#card").innerHTML=`<div class="reveal">Loading the piano…</div>`;loadPiano().then(()=>{if($("#card"))fn()})};
 
