@@ -48,6 +48,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 .lv[aria-pressed="true"]{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
 .lv[aria-pressed="true"] span{color:var(--on-lvl);opacity:.75}
 .lv:active{transform:scale(.97)}
+.ts-btn b{font-family:Georgia,serif;font-size:1.05rem;line-height:1.05}
 
 .mode{text-align:left;padding:18px 16px 16px;border-radius:18px;background:var(--surface);border:2px solid var(--line);
   display:flex;flex-direction:column;gap:6px;transition:transform .12s,border-color .12s;width:100%}
@@ -109,6 +110,8 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 .btn.go{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
 .btn:active{transform:scale(.98)}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.retry{align-self:center;padding:10px 18px;font-size:.95rem}
+.retry[hidden]{display:none}
 .hint{margin:0;text-align:center;color:var(--muted);font-weight:600;font-size:.9rem}
 
 .done{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:30px 20px}
@@ -121,7 +124,9 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 
 #fx{position:fixed;inset:0;pointer-events:none;z-index:20}
 @media (min-width:700px){.playing .app{max-width:900px}}
-@media (min-width:1000px){.playing .app{max-width:1040px} .playing .pad{height:120px}}
+@media (min-width:1000px){.playing .app{max-width:1040px}}
+/* on computers the spacebar does the work, so the button can be small */
+@media (min-width:700px) and (hover:hover){.pad{height:84px;max-width:360px;margin-inline:auto;font-size:1.3rem}}
 @media (max-width:520px){
   .app{gap:16px} body{padding-block:12px 32px}
   .qcard{margin-inline:-6px;padding:12px 4px 6px}
@@ -162,33 +167,61 @@ const CELLS={
   s2e:{b:1,els:[{d:1},{d:1},{d:2}]},
   ere:{b:1,els:[{d:2,r:1},{d:2}]},
   tie:{b:2,even:1,els:[{d:4,tie:1},{d:2},{d:2}]},
+  // for 6/8, 9/8 and 12/8: here a cell fills one or more groups of three eighths (6 sixteenths each)
+  dq:  {b:1,els:[{d:6}]},
+  e3:  {b:1,els:[{d:2},{d:2},{d:2}]},
+  qe:  {b:1,els:[{d:4},{d:2}]},
+  eq:  {b:1,els:[{d:2},{d:4}]},
+  dqr: {b:1,els:[{d:6,r:1}]},
+  cdh: {b:2,even:1,els:[{d:12}]},
+  re2: {b:1,els:[{d:2,r:1},{d:2},{d:2}]},
+  s6:  {b:1,els:[{d:1},{d:1},{d:1},{d:1},{d:1},{d:1}]},
+  s2e2:{b:1,els:[{d:1},{d:1},{d:2},{d:2}]},
+  es2e:{b:1,els:[{d:2},{d:1},{d:1},{d:2}]},
+  ctie:{b:2,even:1,els:[{d:6,tie:1},{d:2},{d:2},{d:2}]},
 };
+// time signatures, and the level where each one opens up
+const METERS={"4/4":1,"3/4":1,"2/4":1,"6/8":2,"9/8":3,"12/8":3};
+// c: counted in eighths, in groups of three. BAR: sixteenths in a bar. beatLen: sixteenths per beat. clickLen: sixteenths between clicks
+function meterInfo(k){const [n,d]=k.split("/").map(Number),c=d===8;return{key:k,n,d,c,beats:c?n/3:n,beatLen:c?6:4,clickLen:c?2:4,BAR:c?n*2:n*4}}
 // how often each cell shows up. New things for a level show up a lot so they get practiced.
 const LEVELS={
   1:{name:"Junior",bpm:66,w:{q:5,h:3,w:1,qr:1.6,hr:1,wr:.35},
-     learn:["w","h","q","wr","hr","qr"]},
+     learn:["w","h","q","wr","hr","qr"]},  // cw/cbpm/clearn: the same for 6/8, 9/8 and 12/8 (cbpm is dotted quarters a minute)
   2:{name:"Intermediate",bpm:76,w:{q:3,h:1.5,w:.3,qr:1.5,hr:.6,e2:4,dh:1.2,dqe:2.5},
-     learn:["e2","dh","dqe"]},
+     learn:["e2","dh","dqe"],
+     cbpm:46,cw:{dq:3,e3:3,qe:3,eq:1,dqr:1.2,cdh:1},clearn:["dq","e3","qe","dqr","cdh"]},
   3:{name:"Senior",bpm:72,w:{q:1.5,h:1,e2:2,qr:1,dh:.8,dqe:2,s4:2,es2:2,s2e:2,ere:2,tie:2},
-     learn:["s4","es2","ere","tie"]}};
+     learn:["s4","es2","ere","tie"],
+     cbpm:42,cw:{dq:1.5,e3:2,qe:2,eq:1,dqr:1,cdh:.6,s6:1.5,s2e2:2,es2e:2,re2:2,ctie:1.5},clearn:["s6","s2e2","es2e","re2","ctie"]}};
 const LEARN={
   w:["Whole note","4 beats"],h:["Half note","2 beats"],q:["Quarter note","1 beat"],e2:["Eighth notes","½ beat each"],
   qr:["Quarter rest","1 beat, quiet"],hr:["Half rest","2 beats, quiet"],wr:["Whole rest","4 beats, quiet"],dh:["Dotted half","3 beats"],
   dqe:["Dotted quarter + eighth","1½ + ½"],s4:["Sixteenths","¼ beat each"],es2:["Eighth + 2 sixteenths","½ + ¼ + ¼"],
-  ere:["Eighth rest + eighth","quiet, then tap on “&”"],tie:["Tie","hold it, don't tap again"]};
+  ere:["Eighth rest + eighth","quiet, then tap on “&”"],tie:["Tie","hold it, don't tap again"],
+  dq:["Dotted quarter","3 counts"],e3:["Three eighths","1 count each"],qe:["Quarter + eighth","2 + 1"],dqr:["Dotted quarter rest","3 counts, quiet"],
+  cdh:["Dotted half","6 counts"],s6:["Sixteenths","½ count each"],s2e2:["16ths + 8ths","½ ½ 1 1"],
+  es2e:["8th, 16ths, 8th","1 ½ ½ 1"],re2:["8th rest + 8ths","quiet on 1"],ctie:["Tie","hold it, don't tap again"]};
+const meters=()=>Object.keys(METERS).filter(k=>METERS[k]<=lvl);
+let meter=store.get("meter","4/4"),M=meterInfo("4/4"),BAR=16;
+const useMeter=()=>{if(!meters().includes(meter))meter="4/4";M=meterInfo(meter);BAR=M.BAR};
+const weights=()=>M.c?LEVELS[lvl].cw:LEVELS[lvl].w;
+// seconds per sixteenth at this level and time signature
+const sixteenth=()=>M.c?60/LEVELS[lvl].cbpm/6:60/LEVELS[lvl].bpm/4;
+const tempoText=()=>M.c?`♩. = ${LEVELS[lvl].cbpm}`:`♩ = ${LEVELS[lvl].bpm}`;
 
 function newBar(prevSig){
-  const W=LEVELS[lvl].w;
+  const W=weights(),N=M.beats;
   for(;;){
     let beat=0;const els=[];
-    while(beat<4){
-      const ok=Object.keys(W).filter(k=>{const c=CELLS[k];return c.b<=4-beat&&(!c.even||beat%2===0)&&(!c.first||beat===0)});
+    while(beat<N){
+      const ok=Object.keys(W).filter(k=>{const c=CELLS[k];return c.b<=N-beat&&(!c.even||beat%2===0)&&(!c.first||beat===0)});
       let r=Math.random()*ok.reduce((s,k)=>s+W[k],0),k=ok[0];
       for(const x of ok){r-=W[x];if(r<=0){k=x;break}}
-      let t=beat*4;CELLS[k].els.forEach(e=>{els.push({...e,t,cell:beat});t+=e.d});beat+=CELLS[k].b;
+      let t=beat*M.beatLen;CELLS[k].els.forEach(e=>{els.push({...e,t,cell:beat});t+=e.d});beat+=CELLS[k].b;
     }
     const taps=els.filter((e,i)=>!e.r&&!(i>0&&els[i-1].tie)).length,sig=els.map(e=>e.d+(e.r?"r":"")+(e.tie?"~":"")).join(" ");
-    if((taps>=(lvl===1?1:2)||els[0].d===16)&&sig!==prevSig&&!els.every(e=>e.d===4&&!e.r))return {els,sig};
+    if((taps>=(lvl===1||M.n<=3?1:2)||els[0].d===BAR)&&sig!==prevSig&&!els.every(e=>e.d===4&&!e.r))return {els,sig};
   }
 }
 // the notes you actually tap: not rests, and not the second half of a tie
@@ -210,9 +243,11 @@ function drawEls(els,pre="",off=0){
   els.forEach((e,i)=>{
     const x=e.x;let g="";
     if(e.r){
-      if(e.d===8)g=`<rect x="${x-7}" y="${Y-6}" width="14" height="6"/>`;      // half rest sits on the line
-      else if(e.d===16)g=`<rect x="${x-7}" y="${Y}" width="14" height="6"/>`; // whole rest hangs below it
-      else g=`<text class="rest" x="${x}" y="${Y+(e.d===4?12:8)}" text-anchor="middle" font-size="${e.d===4?40:38}">${e.d===4?"𝄽":"𝄾"}</text>`;
+      const d=e.d===6?4:e.d===12?8:e.d; // a dotted rest: the plain rest plus a dot
+      if(d===8)g=`<rect x="${x-7}" y="${Y-6}" width="14" height="6"/>`;      // half rest sits on the line
+      else if(d===16)g=`<rect x="${x-7}" y="${Y}" width="14" height="6"/>`; // whole rest hangs below it
+      else g=`<text class="rest" x="${x}" y="${Y+(d===4?12:8)}" text-anchor="middle" font-size="${d===4?40:38}">${d===4?"𝄽":"𝄾"}</text>`;
+      if(d!==e.d)g+=`<circle cx="${x+11}" cy="${Y-6}" r="2.3"/>`;
     }else if(e.d===16){
       g=`<ellipse cx="${x}" cy="${Y}" rx="8.6" ry="5.6"/><ellipse class="hole" cx="${x}" cy="${Y}" rx="4.4" ry="2.9" transform="rotate(55 ${x} ${Y})"/>`;
     }else{
@@ -237,19 +272,20 @@ function drawEls(els,pre="",off=0){
 // Every beat gets the same width, so the sweeping line moves at one steady speed, across bar lines too.
 // Levels with sixteenths get wider beats so those notes don't pile up.
 const X0=46,PL=20,RH=100;let U=17,GAP=17; // U: width of one sixteenth. GAP: how far before a bar's first beat its bar line sits. RH: height of one line
-const xAt=(bar,t)=>X0+PL+(bar*16+t)*U; // bar: which bar along the line
+const xAt=(bar,t)=>X0+PL+(bar*BAR+t)*U; // bar: which bar along the line
 function barsSVG(bars,ROW){
-  const minD=Math.min(...Object.keys(LEVELS[lvl].w).flatMap(k=>CELLS[k].els.map(e=>e.d)));U=minD<=1?24:17;GAP=minD<=1?12:17;
-  const rows=Math.ceil(bars.length/ROW),W=xAt(ROW-1,16)+2;let s="",n=0;
+  const minD=Math.min(...Object.keys(weights()).flatMap(k=>CELLS[k].els.map(e=>e.d)));U=minD<=1?24:17;GAP=minD<=1?12:17;
+  const rows=Math.ceil(bars.length/ROW),W=xAt(ROW-1,BAR)+2;let s="",n=0;
   for(let r=0;r<rows;r++){
     const rb=bars.slice(r*ROW,r*ROW+ROW),els=[];
     rb.forEach((b,k)=>b.els.forEach(e=>{e.x=xAt(k,e.t);els.push(e)}));
     let g=`<line class="ln" x1="6" x2="${W-6}" y1="${Y}" y2="${Y}"/><line class="ln" x1="6" x2="6" y1="${Y-14}" y2="${Y+14}"/>`;
-    if(r===0)g+=`<text class="ts" x="17" y="${Y-3}">4</text><text class="ts" x="17" y="${Y+19}">4</text>`;
-    rb.forEach((b,k)=>{const last=r*ROW+k===bars.length-1,x=k===rb.length-1?W-6:xAt(k,16)-GAP; // a bar line sits just before the next bar's first beat
+    if(r===0)g+=`<text class="ts" x="${M.n>9?11:17}" y="${Y-3}">${M.n}</text><text class="ts" x="17" y="${Y+19}">${M.d}</text>`;
+    rb.forEach((b,k)=>{const last=r*ROW+k===bars.length-1,x=k===rb.length-1?W-6:xAt(k,BAR)-GAP; // a bar line sits just before the next bar's first beat
       g+=last?`<line class="ln" x1="${x-6}" x2="${x-6}" y1="${Y-14}" y2="${Y+14}"/><line class="ln" x1="${x-1.5}" x2="${x-1.5}" y1="${Y-14}" y2="${Y+14}" style="stroke-width:4"/>`
              :`<line class="ln" x1="${x}" x2="${x}" y1="${Y-14}" y2="${Y+14}"/>`;
-      for(let q=0;q<4;q++){
+      if(M.c)for(let q=0;q<M.n;q++)g+=`<text class="count${q%3?" and":""}" x="${xAt(k,q*2)}" y="${Y+40}" text-anchor="middle">${q+1}</text>`; // 1 2 3 4 5 6, with 1 and 4 standing out
+      else for(let q=0;q<M.n;q++){
         g+=`<text class="count" x="${xAt(k,q*4)}" y="${Y+40}" text-anchor="middle">${q+1}</text>`;
         if(lvl>1)g+=`<text class="count and" x="${xAt(k,q*4+2)}" y="${Y+40}" text-anchor="middle">&amp;</text>`;
       }});
@@ -301,9 +337,10 @@ function note(n,T=0,dur=.5,vol=.8){
     }
   }catch(e){}
 }
-function click(T,accent){
-  try{const o=ctx.createOscillator(),g=ctx.createGain();o.type="sine";o.frequency.value=accent?1760:1175;
-    g.gain.setValueAtTime(0,T);g.gain.linearRampToValueAtTime(accent?.45:.28,T+.002);g.gain.exponentialRampToValueAtTime(.001,T+.06);
+// how strong: 2 = start of the bar, 1 = start of a group of three in 6/8, 0 = the others
+function click(T,strong){
+  try{const o=ctx.createOscillator(),g=ctx.createGain();o.type="sine";o.frequency.value=[1175,1400,1760][strong];
+    g.gain.setValueAtTime(0,T);g.gain.linearRampToValueAtTime([M.c?.2:.28,.34,.45][strong],T+.002);g.gain.exponentialRampToValueAtTime(.001,T+.06);
     o.connect(g);g.connect(master);o.start(T);o.stop(T+.08);live.push(o)}catch(e){}
 }
 // a note that rings while the key is held; call what it returns to let go
@@ -325,6 +362,8 @@ function heardAt(perfMs){
   return ctx.currentTime-(ctx.outputLatency||ctx.baseLatency||0)-(performance.now()-perfMs)/1000;
 }
 const TAP_NOTE=67;
+// screens show a frame a little after it's drawn, so the moving line is drawn this far ahead (seconds) to line up with the sound. Only the line, not the judging.
+const LINE_AHEAD=.06;
 
 // ---------- confetti
 const fx=$("#fx"),fc=fx.getContext("2d");let bits=[];
@@ -342,9 +381,9 @@ function confetti(){
 
 // ---------- screens
 const stage=$("#stage");
-const setLevel=l=>{lvl=l;store.set("lvl",l);document.body.className="l"+l};
-const best=()=>store.get(`best:${lvl}:tap`,null);
-function bar(title){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl].name} · ♩ = ${LEVELS[lvl].bpm}</span></div>`}
+const setLevel=l=>{lvl=l;store.set("lvl",l);document.body.className="l"+l;useMeter()};
+const bestKey=()=>`best:${lvl}:${meter==="4/4"?"tap":meter}`,best=()=>store.get(bestKey(),null);
+function bar(title){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl].name} · ${meter} · ${tempoText()}</span></div>`}
 let onPad=null,onLift=null; // what pressing and letting go of the tap area / spacebar do right now
 function reset(){timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);if(ctx)hush();onPad=onLift=null;stage.classList.remove("playing")}
 const GOOD=.15,OK=.3; // seconds early or late: green, yellow
@@ -356,16 +395,29 @@ function home(){
      <a class="icon-btn" href="./">← All games</a></div>
    <div class="group"><span class="label">Pick your level</span>
     <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l].name}</b><span>♩ = ${LEVELS[l].bpm}</span></button>`).join("")}</div></div>
+   <div class="group"><span class="label">Time signature</span>
+    <div class="levels" style="grid-template-columns:repeat(${meters().length},1fr)">${meters().map(k=>`<button class="lv ts-btn" data-m="${k}" aria-pressed="${k===meter}"><b>${k.replace("/","<br>")}</b></button>`).join("")}</div>
+    ${M.c?`<p class="hint" style="text-align:left">In ${meter}, count every eighth note: ${Array.from({length:M.n},(_,q)=>q%3?q+1:`<b>${q+1}</b>`).join(" ")}. Lean on <b>1</b> and <b>4</b>${M.n>6?" and the other bold ones":""}.</p>`:""}</div>
    <button class="mode" id="go"><span class="glyph">♩♫</span><h3>Eight Bars</h3><p>A click counts you in. Tap each note as the line reaches it, and hold long notes for all their beats. Stay quiet on rests!</p>
      <span class="best">${b?`Best: ${b}% in time`:"Not played yet"}</span></button>
-   <div class="group"><span class="label">${lvl===1?"The notes in this level":"New in "+LEVELS[lvl].name}</span>
-    <div class="legend">${LEVELS[lvl].learn.map(k=>`<div>${cellSVG(k)}<p style="margin:0"><b>${LEARN[k][0]}</b><span>${LEARN[k][1]}</span></p></div>`).join("")}</div></div>
+   <div class="group"><span class="label">${lvl===1?"The notes in this level":M.c&&lvl===2?"Notes in "+meter:"New in "+LEVELS[lvl].name}</span>
+    <div class="legend">${(M.c?LEVELS[lvl].clearn:LEVELS[lvl].learn).map(k=>`<div>${cellSVG(k)}<p style="margin:0"><b>${LEARN[k][0]}</b><span>${LEARN[k][1]}</span></p></div>`).join("")}</div></div>
    <p class="hint">Press and hold the big button on a phone, or the spacebar on a computer.</p>
    <p class="credit">Piano: <a href="https://archive.org/details/SalamanderGrandPianoV3" target="_blank" rel="noopener">Salamander Grand Piano</a> by Alexander Holm (CC BY 3.0)</p>
   </div>`;
   stage.querySelectorAll("[data-l]").forEach(el=>el.onclick=()=>{setLevel(+el.dataset.l);home()});
+  stage.querySelectorAll("[data-m]").forEach(el=>el.onclick=()=>{meter=el.dataset.m;store.set("meter",meter);useMeter();home()});
   $("#go").onclick=play;
 }
+
+// shrink the music so the whole game fits the window and the tap button stays on screen.
+// It never gets smaller than about 55px a line; on a small phone with many lines you scroll a little instead.
+function fitMusic(){
+  const svg=$("#music svg");if(!svg)return;svg.style.maxHeight="";
+  const over=document.documentElement.scrollHeight-innerHeight,lines=svg.querySelectorAll(":scope>g[transform]").length;
+  if(over>0)svg.style.maxHeight=Math.max(lines*55,svg.getBoundingClientRect().height-over-4)+"px";
+}
+addEventListener("resize",fitMusic);
 
 // the tap area and the spacebar do the same thing
 function padPress(ts){
@@ -382,13 +434,16 @@ function padLabel(main,small,cls=""){const p=$("#pad");if(!p)return;p.className=
 // --- eight bars on screen at once: counted in, tapped straight through, then played back the right way
 function play(){
   reset();
-  const L=LEVELS[lvl],beat=60/L.bpm,TOTAL=8,ROW=innerWidth>=1000?4:innerWidth>=560?2:1,rows=TOTAL/ROW;
+  useMeter();
+  // sx: seconds per sixteenth. ROW: bars on each line, as many as fit (wide screens fit 4 bars of 4/4)
+  const sx=sixteenth(),TOTAL=8,room=innerWidth>=1000?64:innerWidth>=560?32:16,ROW=[8,4,2,1].find(k=>k*BAR<=room)||1,rows=TOTAL/ROW,PER=BAR/M.clickLen;
   let bars=[];
   stage.classList.add("playing");
   stage.innerHTML=`<div class="app">${bar("Eight Bars")}<div class="dots" id="dots"></div>
     <div class="stats"><span>Bar <strong id="num">1</strong> of ${TOTAL}</span><span id="score"></span></div>
     <div class="qcard"><div id="music" style="width:100%"></div><div class="msg" id="msg"></div></div>
-    <button class="pad" id="pad" aria-label="Tap">TAP</button></div>`;
+    <button class="pad" id="pad" aria-label="Tap">TAP</button>
+    <button class="btn retry" id="retry" hidden>↻ Try these bars again</button></div>`;
   $("#back").onclick=home;
   const pad=$("#pad");
   pad.addEventListener("pointerdown",e=>{e.preventDefault();try{pad.setPointerCapture(e.pointerId)}catch(_){};padPress(e.timeStamp)});
@@ -400,32 +455,39 @@ function play(){
   const setup=()=>{
     let sig=null;
     do{bars=[];for(let i=0;i<TOTAL;i++){const b=newBar(sig);sig=b.sig;bars.push(b)}}while(!tapsOf(bars[0].els).length); // a quiet bar is fine, just not the very first one
-    $("#music").innerHTML=barsSVG(bars,ROW);dots();
-    msg("Read the rhythm. Ready?");
+    ready("Read the rhythm. Ready?");
+  };
+  // show the bars fresh (no colors) and wait for Start
+  const ready=say=>{
+    $("#retry").hidden=true;
+    $("#music").innerHTML=barsSVG(bars,ROW);fitMusic();dots();
+    msg(say);
     padLabel("Start",ROW>1?"or press the spacebar":"tap here","go");onPad=()=>turn();
   };
+  // the same eight bars again: stop the playback and start over
+  $("#retry").onclick=()=>{timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);hush();$("#retry").blur();ready("Same bars again. Ready?")}; // blur: so the spacebar goes back to tapping, not this button
 
   // where the line is for a time (seconds after the first downbeat): which line of music, and how far along
-  const posAt=sec=>{const b=Math.min(TOTAL*16,sec/(beat/4)),r=Math.max(0,Math.min(rows-1,Math.floor(b/(ROW*16))));return{b,r,x:xAt(0,b-r*ROW*16),bar:Math.min(TOTAL-1,Math.max(0,Math.floor(b/16)))}};
+  const posAt=sec=>{const b=Math.min(TOTAL*BAR,sec/sx),r=Math.max(0,Math.min(rows-1,Math.floor(b/(ROW*BAR))));return{b,r,x:xAt(0,b-r*ROW*BAR),bar:Math.min(TOTAL-1,Math.max(0,Math.floor(b/BAR)))}};
   const hideSweep=(id="#sweep")=>$(id)?.setAttribute("visibility","hidden");
   const moveSweep=(r,x,cls="",id="#sweep")=>{const s=$(id);if(!s)return;s.setAttribute("x1",x);s.setAttribute("x2",x);s.setAttribute("y1",Y-44+r*RH);s.setAttribute("y2",Y+28+r*RH);s.setAttribute("class","sweep "+cls);s.setAttribute("visibility","visible")};
   // a line coming in: over the last beat before a line starts (left: sixteenths to go), it slides from the left edge to beat 1
-  const leadX=left=>8+(xAt(0,0)-8)*(1-left/4);
+  const leadX=left=>8+(xAt(0,0)-8)*(1-left/M.beatLen);
   // near the end of a line, a second line slides in at the start of the next one, so you see where to go next
   const follow=(p,cls="")=>{moveSweep(p.r,p.x,cls);$("#num").textContent=p.bar+1;
-    const left=(p.r+1)*ROW*16-p.b;if(p.r<rows-1&&left<=4)moveSweep(p.r+1,leadX(left),cls,"#sweep2");else hideSweep("#sweep2")};
+    const left=(p.r+1)*ROW*BAR-p.b;if(p.r<rows-1&&left<=M.beatLen)moveSweep(p.r+1,leadX(left),cls,"#sweep2");else hideSweep("#sweep2")};
 
   function turn(){
     audio();onPad=null;
-    const T0=ctx.currentTime+.35+4*beat,END=T0+TOTAL*4*beat;
+    const T0=ctx.currentTime+.35+BAR*sx,END=T0+TOTAL*BAR*sx;
     // a count-in bar of clicks, then the clicks go on under the music
-    for(let k=0;k<4*(TOTAL+1);k++)click(T0+(k-4)*beat,k%4===0);
+    for(let k=0;k<PER*(TOTAL+1);k++)click(T0+(k-PER)*M.clickLen*sx,k%PER===0?2:M.c&&k%3===0?1:0);
     // when each tappable note should land, how long to hold it, and whether a rest comes right after
     const flat=bars.flatMap((b,bi)=>b.els.map(e=>({e,bi})));
     const want=[];flat.forEach(({e,bi},i)=>{
       if(e.r||(i>0&&flat[i-1].e.tie))return;
       const j=e.tie?i+1:i,len=e.d+(e.tie?flat[i+1].e.d:0);
-      want.push({e,bi,at:T0+(bi*16+e.t)*beat/4,len,restAfter:!!(flat[j+1]&&flat[j+1].e.r)})});
+      want.push({e,bi,at:T0+(bi*BAR+e.t)*sx,len,restAfter:!!(flat[j+1]&&flat[j+1].e.r)})});
     const taps=[];let started=false,down=null,stop=null;
     const pl=()=>padLabel("TAP","hold long notes","wait");
     pl();msg(`<span class="big">· · · ·</span>`);
@@ -435,12 +497,12 @@ function play(){
     let lastBar=-1;
     const tick=()=>{
       const now=heardAt(performance.now());
-      if(now<T0){const k=Math.floor((now-(T0-4*beat))/beat);
-        if(k>=0)msg(`<span class="big">${[1,2,3,4].map(n=>n<=k+1?n:"·").join(" ")}</span>`);
+      if(now<T0){const k=Math.floor((now-(T0-BAR*sx))/(M.clickLen*sx));
+        if(k>=0)msg(`<span class="big"${PER>6?' style="letter-spacing:.1em"':""}>${Array.from({length:PER},(_,n)=>n<=k?n+1:"·").join(" ")}</span>`);
         // the line slides in from the left during the last count-in beat and reaches the first note on "1"
-        const left=(T0-now)/(beat/4);if(left<=4)moveSweep(0,leadX(left));else hideSweep()}
+        const left=(T0-now-LINE_AHEAD)/sx;if(left<=M.beatLen)moveSweep(0,leadX(left));else hideSweep()}
       else if(now<END){if(!started){started=true;pl();msg("Tap!")}
-        const p=posAt(now-T0);follow(p);if(p.bar!==lastBar){lastBar=p.bar;dots([],p.bar)}}
+        const p=posAt(now+LINE_AHEAD-T0);follow(p);if(p.bar!==lastBar){lastBar=p.bar;dots([],p.bar)}}
       else if(now>END+OK+.05){lift(now);onPad=onLift=null;return judge(T0,want,taps)}
       raf=requestAnimationFrame(tick)};
     raf=requestAnimationFrame(tick);
@@ -449,7 +511,7 @@ function play(){
   let pts=0,items=0;
   function judge(T0,want,taps){
     // each bar gets its own score, for the dots up top
-    const bItems=Array(TOTAL).fill(0),bPts=Array(TOTAL).fill(0),barOf=at=>Math.max(0,Math.min(TOTAL-1,Math.floor((at-T0)/(4*beat))));
+    const bItems=Array(TOTAL).fill(0),bPts=Array(TOTAL).fill(0),barOf=at=>Math.max(0,Math.min(TOTAL-1,Math.floor((at-T0)/(BAR*sx))));
     const extra=[],hit=new Map();
     taps.forEach(tp=>{
       let bestW=null;want.forEach(w=>{if(!hit.has(w)&&Math.abs(tp.at-w.at)<=OK&&(!bestW||Math.abs(tp.at-w.at)<Math.abs(tp.at-bestW.at)))bestW=w});
@@ -460,8 +522,8 @@ function play(){
       const tp=hit.get(w);if(!tp){miss++;mark(w.e,"no");return}
       const d=tp.at-w.at;offs.push(d);
       // quarter notes and longer: hold the key until the note is over, and let go when a rest comes
-      const end=w.at+w.len*beat/4;let held=true;
-      if(w.len>=4&&tp.up!=null){if(tp.up<end-Math.max(.25,w.len*beat/4*.3)){short++;held=false}else if(w.restAfter&&tp.up>end+.25){long++;held=false}}
+      const end=w.at+w.len*sx;let held=true;
+      if(w.len>=4&&tp.up!=null){if(tp.up<end-Math.max(.25,w.len*sx*.3)){short++;held=false}else if(w.restAfter&&tp.up>end+.25){long++;held=false}}
       tp.cls=Math.abs(d)<=GOOD&&held?"ok":"mid";
       bItems[w.bi]++;bPts[w.bi]+=tp.cls==="ok"?1:.5;
       if(tp.cls==="ok")good++;else close++;mark(w.e,tp.cls)});
@@ -471,16 +533,16 @@ function play(){
     allEls().forEach((e,i,a)=>{if(i>0&&a[i-1].tie&&!a[i-1].r){const g=$("#e"+(i-1));if(g){const c=["ok","mid","no"].find(c=>g.classList.contains(c));if(c)$("#e"+i).classList.add(c)}}});
     // rests: green if you kept quiet
     bars.forEach((b,bi)=>b.els.forEach(e=>{if(!e.r)return;
-      const a=T0+(bi*16+e.t)*beat/4,z=a+e.d*beat/4,bad=extra.some(x=>x.at>=a-.02&&x.at<z-.02);
-      bItems[bi]++;if(bad){restsBad++;mark(e,"no")}else{restsOk++;bPts[bi]++;mark(e,"ok")}}));
+      const a=T0+(bi*BAR+e.t)*sx,z=a+e.d*sx,bad=extra.some(x=>x.at>=a-.02&&x.at<z-.02);
+      if(bad){restsBad++;mark(e,"no")}else{restsOk++;mark(e,"ok")}}));
     // under the line: a mark where you tapped and a bar for how long you held (split if it runs onto the next line)
-    const yT=r=>Y+21+r*RH,end=xAt(ROW-1,16)-6;
+    const yT=r=>Y+21+r*RH,end=xAt(ROW-1,BAR)-6;
     $("#ticks").innerHTML=taps.map(tp=>{
       const a=posAt(tp.at-T0),z=tp.up==null?a:posAt(tp.up-T0),cls=tp.cls||"no";let h="";
       for(let r=a.r;r<=z.r;r++){const x1=r===a.r?a.x:xAt(0,0)-6,x2=r===z.r?Math.max(x1,z.x):end;
         h+=`<line class="tick ${cls}" x1="${x1}" x2="${x2}" y1="${yT(r)}" y2="${yT(r)}" style="stroke-width:4;opacity:.55"/>`}
       return h+`<line class="tick ${cls}" x1="${a.x}" x2="${a.x}" y1="${yT(a.r)-5}" y2="${yT(a.r)+5}"/>`}).join("");
-    items=want.length+restsOk+restsBad+extra.length;pts=good+close*.5+restsOk;
+    items=want.length+extra.length;pts=good+close*.5; // rests earn nothing: tapping nothing at all scores 0
     const res=bPts.map((p,k)=>{const f=bItems[k]?p/bItems[k]:1;return f>=.9?"ok":f>=.6?"mid":"no"});
     dots(res);$("#num").textContent=TOTAL;
     $("#score").innerHTML=`In time <strong>${Math.round(100*pts/Math.max(1,items))}%</strong>`;
@@ -492,22 +554,22 @@ function play(){
     else if(long)say+=" — let go when the rest comes!";
     else if(offs.length>=2&&Math.abs(avg)>.07&&good<want.length)say+=avg<0?" — a little early, wait for it!":" — a little late, get ready sooner!";
     msg(say);
-    padLabel("Listen…","here's how it goes","wait");
+    padLabel("Listen…","here's how it goes","wait");$("#retry").hidden=false;
     later(()=>replay(),900);
   }
   const allEls=()=>bars.flatMap(b=>b.els);
 
   // play it back the right way, with the line sweeping again. You can skip to your score.
   function replay(){
-    audio();const T0=ctx.currentTime+.3,END=T0+TOTAL*4*beat;
+    audio();const T0=ctx.currentTime+.3,END=T0+TOTAL*BAR*sx;
     padLabel("See your score","or keep listening","go");onPad=over;
-    for(let k=0;k<4*TOTAL;k++)click(T0+k*beat,k%4===0);
+    for(let k=0;k<PER*TOTAL;k++)click(T0+k*M.clickLen*sx,k%PER===0?2:M.c&&k%3===0?1:0);
     bars.forEach((b,bi)=>{b.els.forEach((e,i)=>{
       if(e.r)return;if(i>0&&b.els[i-1].tie)return;
       const len=e.d+(e.tie&&b.els[i+1]?b.els[i+1].d:0);
-      note(TAP_NOTE,T0+(bi*16+e.t)*beat/4,Math.max(.12,len*beat/4*.85),.7)})});
+      note(TAP_NOTE,T0+(bi*BAR+e.t)*sx,Math.max(.12,len*sx*.85),.7)})});
     const tick=()=>{const now=heardAt(performance.now());
-      if(now>=T0&&now<END)follow(posAt(now-T0),"replay");
+      if(now+LINE_AHEAD>=T0&&now<END)follow(posAt(now+LINE_AHEAD-T0),"replay");
       if(now>=END+.15){hideSweep();hideSweep("#sweep2");padLabel("See your score","","go");return}
       raf=requestAnimationFrame(tick)};
     raf=requestAnimationFrame(tick);
