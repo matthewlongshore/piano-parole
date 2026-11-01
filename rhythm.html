@@ -48,9 +48,9 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 .lv[aria-pressed="true"]{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
 .lv[aria-pressed="true"] span{color:var(--on-lvl);opacity:.75}
 .lv:active{transform:scale(.97)}
-.tsig{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-family:Georgia,serif;font-weight:800;line-height:.85;font-size:1.05em;margin:-6px 3px}
+.tsig{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-family:'Times New Roman',Times,serif;font-weight:900;line-height:.85;font-size:1.1em;margin:-6px 3px}
 .tsig b{font-family:inherit;font-size:inherit;color:inherit}
-.ts-btn b{font-family:Georgia,serif;font-size:1.05rem;line-height:1.05}
+.ts-btn b{font-family:'Times New Roman',Times,serif;font-weight:900;font-size:1.45rem;line-height:.95}
 
 .mode{text-align:left;padding:18px 16px 16px;border-radius:18px;background:var(--surface);border:2px solid var(--line);
   display:flex;flex-direction:column;gap:6px;transition:transform .12s,border-color .12s;width:100%}
@@ -82,7 +82,7 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
 .qcard{background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:14px 10px 8px;display:flex;flex-direction:column;align-items:center;gap:4px}
 .rh{width:100%;height:auto;display:block;color:var(--ink);overflow:visible}
 .rh .ln{stroke:var(--ink);stroke-width:1.4}
-.rh .ts{font-family:var(--score);font-style:normal;font-weight:800;font-size:23px;fill:var(--ink);font-family:Georgia,serif}
+.rh .ts{font-family:var(--score);font-style:normal;font-weight:900;font-size:25px;fill:var(--ink);font-family:'Times New Roman',Times,serif}
 .rh .count{font-family:var(--display);font-weight:800;font-size:12px;fill:var(--muted)}
 .rh .count.and{opacity:.55}
 .el{color:var(--ink)}
@@ -401,7 +401,7 @@ function home(){
     <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l].name}</b><span>♩ = ${LEVELS[l].bpm}</span></button>`).join("")}</div></div>
    <div class="group"><span class="label">Time signature</span>
     <div class="levels" style="grid-template-columns:repeat(${meters().length},1fr)">${meters().map(k=>`<button class="lv ts-btn" data-m="${k}" aria-pressed="${k===meter}"><b>${k.replace("/","<br>")}</b></button>`).join("")}</div>
-    ${M.c?`<p class="hint" style="text-align:left">In ${tsig(meter)} count every eighth note: ${Array.from({length:M.n},(_,q)=>q%3?q+1:`<b>${q+1}</b>`).join(" ")}. Lean on <b>1</b> and <b>4</b>${M.n>6?" and the other bold ones":""}.</p>`:""}</div>
+    ${M.c?`<p class="hint" style="text-align:left">In ${tsig(meter)} count every eighth note: ${Array.from({length:M.n},(_,q)=>q%3?q+1:`<b>${q+1}</b>`).join(" ")}. Lean on ${Array.from({length:M.n/3},(_,q)=>`<b>${q*3+1}</b>`).join(M.n>6?", ":" and ").replace(/, (?=[^,]*$)/," and ")}.</p>`:""}</div>
    <button class="mode" id="go"><span class="glyph">♩♫</span><h3>Eight Bars</h3><p>A click counts you in. Tap each note as the line reaches it, and hold long notes for all their beats. Stay quiet on rests!</p>
      <span class="best">${b?`Best: ${b}% in time`:"Not played yet"}</span></button>
    <div class="group"><span class="label">${lvl===1?"The notes in this level":M.c&&lvl===2?"Notes in "+meter:"New in "+LEVELS[lvl].name}</span>
