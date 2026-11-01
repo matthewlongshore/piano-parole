@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Piano Ritmo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Nunito:wght@500;700;800&family=Playfair+Display:ital,wght@1,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%BD%F0%9D%84%BE&display=block">
+<style>
+/* Same look as the other games. A bar of rhythm is written out; a line sweeps across it and you tap each note in time. */
+:root{
+  --bg:#F4F3F8; --surface:#FFFFFF; --ink:#1A1720; --muted:#69647A; --line:#E2DFEA;
+  --jr:#F08A3E; --int:#3E9CC4; --sr:#8B5BC9; --on-lvl:#17141C;
+  --good:#23945A; --close:#D99A00; --bad:#D43F57;
+  --display:'Bricolage Grotesque', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --body:'Nunito', system-ui, -apple-system, sans-serif;
+  --score:'Playfair Display', Georgia, 'Times New Roman', serif;
+  --lvl:var(--jr);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#131118; --surface:#1E1B25; --ink:#F1EEF6; --muted:#A39DB0; --line:#302B3A;
+  --jr:#F59A55; --int:#5BB4DA; --sr:#A97FE3; --good:#45B97A; --close:#F0B429; --bad:#EF6478; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#131118; --surface:#1E1B25; --ink:#F1EEF6; --muted:#A39DB0; --line:#302B3A;
+  --jr:#F59A55; --int:#5BB4DA; --sr:#A97FE3; --good:#45B97A; --close:#F0B429; --bad:#EF6478; color-scheme:dark }
+body.l1{--lvl:var(--jr)} body.l2{--lvl:var(--int)} body.l3{--lvl:var(--sr)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.app{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:3px solid var(--lvl);outline-offset:3px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05}
+
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand h1{font-size:clamp(2.2rem,8vw,3.1rem);font-weight:800;letter-spacing:-.02em}
+.brand h1 em{font-family:var(--score);font-style:italic;color:var(--lvl);font-weight:800}
+.brand p{margin:4px 0 0;color:var(--muted);font-weight:600}
+.icon-btn{padding:8px 12px;border-radius:999px;border:2px solid var(--line);font-weight:800;font-size:.85rem;color:var(--muted);background:var(--surface);text-decoration:none}
+.label{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--muted)}
+.group{display:flex;flex-direction:column;gap:8px}
+
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lv{padding:12px 8px;border-radius:14px;border:2px solid var(--line);background:var(--surface);text-align:center;transition:transform .12s}
+.lv b{display:block;font-family:var(--display);font-size:1.1rem}
+.lv span{font-size:.8rem;color:var(--muted);font-weight:700}
+.lv[aria-pressed="true"]{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
+.lv[aria-pressed="true"] span{color:var(--on-lvl);opacity:.75}
+.lv:active{transform:scale(.97)}
+
+.mode{text-align:left;padding:18px 16px 16px;border-radius:18px;background:var(--surface);border:2px solid var(--line);
+  display:flex;flex-direction:column;gap:6px;transition:transform .12s,border-color .12s;width:100%}
+.mode:hover{border-color:var(--lvl);transform:translateY(-2px)}
+.mode .glyph{font-family:var(--score);font-style:italic;font-size:2.1rem;line-height:1;color:var(--lvl)}
+.mode h3{font-size:1.25rem}
+.mode p{margin:0;color:var(--muted);font-size:.9rem;font-weight:600}
+.mode .best{font-size:.8rem;font-weight:800;color:var(--ink)}
+
+/* the note values for this level, each with its beats */
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.legend div{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:6px 10px 8px;display:flex;align-items:center;gap:8px}
+.legend svg{width:62px;height:auto;flex:none}
+.legend b{display:block;font-family:var(--display);font-size:.9rem;line-height:1.1}
+.legend span{font-size:.78rem;color:var(--muted);font-weight:700;line-height:1.2;display:block}
+
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.bar h2{font-size:1.3rem;flex:1;min-width:0}
+.chip{padding:4px 10px;border-radius:999px;background:var(--lvl);color:var(--on-lvl);font-weight:800;font-size:.78rem}
+.back{font-weight:800;padding:6px 12px 6px 6px;border-radius:999px;color:var(--muted)}
+.back:hover{color:var(--ink)}
+.stats{display:flex;justify-content:space-between;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;font-size:.95rem}
+.stats strong{color:var(--ink)}
+.dots{display:flex;gap:6px}
+.dots i{flex:1;height:8px;border-radius:4px;background:var(--line)}
+.dots i.ok{background:var(--good)} .dots i.mid{background:var(--close)} .dots i.no{background:var(--bad)} .dots i.now{background:var(--lvl)}
+
+/* the written rhythm */
+.qcard{background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:14px 10px 8px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.rh{width:100%;height:auto;display:block;color:var(--ink);overflow:visible}
+.rh .ln{stroke:var(--ink);stroke-width:1.4}
+.rh .ts{font-family:var(--score);font-style:normal;font-weight:800;font-size:23px;fill:var(--ink);font-family:Georgia,serif}
+.rh .count{font-family:var(--display);font-weight:800;font-size:12px;fill:var(--muted)}
+.rh .count.and{opacity:.55}
+.el{color:var(--ink)}
+.el ellipse,.el rect,.el circle,.el .f,.el text{fill:currentColor}
+.el line,.el .t{stroke:currentColor;fill:none}
+.el .hole{fill:var(--surface)}
+.el .rest{font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif}
+.el.ok{color:var(--good)} .el.mid{color:var(--close)} .el.no{color:var(--bad)}
+.beam{fill:var(--ink)}
+.sweep{stroke:var(--lvl);stroke-width:3;stroke-linecap:round}
+.sweep.replay{opacity:.45}
+.tick{stroke-width:3;stroke-linecap:round}
+.tick.ok{stroke:var(--good)} .tick.mid{stroke:var(--close)} .tick.no{stroke:var(--bad)}
+.msg{min-height:1.6em;font-weight:700;color:var(--muted);font-size:.98rem;text-align:center}
+.msg b{color:var(--ink);font-family:var(--display);font-size:1.1rem}
+.msg .big{font-family:var(--display);font-size:1.6rem;color:var(--lvl);letter-spacing:.3em}
+
+/* the tap area: big, so thumbs can't miss */
+.pad{width:100%;height:150px;border-radius:22px;background:var(--ink);color:var(--surface);font-family:var(--display);font-weight:800;font-size:1.6rem;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:transform .05s}
+.pad small{font-family:var(--body);font-size:.85rem;font-weight:700;opacity:.65}
+.pad.go{background:var(--lvl);color:var(--on-lvl)}
+.pad.hit{transform:scale(.97)}
+.pad.wait{opacity:.45}
+
+.btn{padding:14px 16px;border-radius:14px;font-weight:800;font-size:1rem;border:2px solid var(--line);background:var(--surface);text-align:center}
+.btn.go{background:var(--lvl);border-color:var(--lvl);color:var(--on-lvl)}
+.btn:active{transform:scale(.98)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hint{margin:0;text-align:center;color:var(--muted);font-weight:600;font-size:.9rem}
+
+.done{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:30px 20px}
+.done h2{font-family:var(--score);font-style:italic;font-size:clamp(2.4rem,10vw,3.4rem);color:var(--lvl)}
+.done .num{font-family:var(--display);font-size:1.4rem;font-weight:800}
+.stars{font-size:2.2rem;letter-spacing:.2em;color:var(--lvl)} .stars .off{color:var(--line)}
+.done .row{width:100%}
+.credit{margin:0;text-align:center;color:var(--muted);font-size:.8rem;font-weight:600}
+.credit a{color:inherit}
+
+#fx{position:fixed;inset:0;pointer-events:none;z-index:20}
+@media (min-width:700px){.playing .app{max-width:900px}}
+@media (min-width:1000px){.playing .app{max-width:1040px} .playing .pad{height:120px}}
+@media (max-width:520px){
+  .app{gap:16px} body{padding-block:12px 32px}
+  .qcard{margin-inline:-6px;padding:12px 4px 6px}
+  .pad{height:170px}
+}
+@media (orientation:landscape) and (max-height:500px){
+  body{padding-block:6px 12px} .app{gap:8px} .playing .dots{display:none} .pad{height:110px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<canvas id="fx"></canvas>
+<div id="stage"></div>
+
+<script>
+// ---------- helpers
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem("pr:"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+             set(k,v){try{localStorage.setItem("pr:"+k,JSON.stringify(v))}catch(e){}}};
+let lvl=store.get("lvl",1),timers=[],raf=0;
+const later=(fn,ms)=>timers.push(setTimeout(fn,ms));
+
+// ---------- rhythm pieces. Time is counted in sixteenths: a beat is 4, a 4/4 bar is 16.
+// A cell fills one or more beats. d: length, r: rest, tie: held into the next note (don't tap that one).
+// even: starts on beat 1 or 3 only; first: starts on beat 1 only.
+const CELLS={
+  q:  {b:1,els:[{d:4}]},
+  h:  {b:2,even:1,els:[{d:8}]},
+  w:  {b:4,first:1,els:[{d:16}]},
+  e2: {b:1,els:[{d:2},{d:2}]},
+  qr: {b:1,els:[{d:4,r:1}]},
+  hr: {b:2,even:1,els:[{d:8,r:1}]},
+  wr: {b:4,first:1,els:[{d:16,r:1}]},
+  dh: {b:3,first:1,els:[{d:12}]},
+  dqe:{b:2,even:1,els:[{d:6},{d:2}]},
+  s4: {b:1,els:[{d:1},{d:1},{d:1},{d:1}]},
+  es2:{b:1,els:[{d:2},{d:1},{d:1}]},
+  s2e:{b:1,els:[{d:1},{d:1},{d:2}]},
+  ere:{b:1,els:[{d:2,r:1},{d:2}]},
+  tie:{b:2,even:1,els:[{d:4,tie:1},{d:2},{d:2}]},
+};
+// how often each cell shows up. New things for a level show up a lot so they get practiced.
+const LEVELS={
+  1:{name:"Junior",bpm:66,w:{q:5,h:3,w:1,qr:1.6,hr:1,wr:.35},
+     learn:["w","h","q","wr","hr","qr"]},
+  2:{name:"Intermediate",bpm:76,w:{q:3,h:1.5,w:.3,qr:1.5,hr:.6,e2:4,dh:1.2,dqe:2.5},
+     learn:["e2","dh","dqe"]},
+  3:{name:"Senior",bpm:72,w:{q:1.5,h:1,e2:2,qr:1,dh:.8,dqe:2,s4:2,es2:2,s2e:2,ere:2,tie:2},
+     learn:["s4","es2","ere","tie"]}};
+const LEARN={
+  w:["Whole note","4 beats"],h:["Half note","2 beats"],q:["Quarter note","1 beat"],e2:["Eighth notes","½ beat each"],
+  qr:["Quarter rest","1 beat, quiet"],hr:["Half rest","2 beats, quiet"],wr:["Whole rest","4 beats, quiet"],dh:["Dotted half","3 beats"],
+  dqe:["Dotted quarter + eighth","1½ + ½"],s4:["Sixteenths","¼ beat each"],es2:["Eighth + 2 sixteenths","½ + ¼ + ¼"],
+  ere:["Eighth rest + eighth","quiet, then tap on “&”"],tie:["Tie","hold it, don't tap again"]};
+
+function newBar(prevSig){
+  const W=LEVELS[lvl].w;
+  for(;;){
+    let beat=0;const els=[];
+    while(beat<4){
+      const ok=Object.keys(W).filter(k=>{const c=CELLS[k];return c.b<=4-beat&&(!c.even||beat%2===0)&&(!c.first||beat===0)});
+      let r=Math.random()*ok.reduce((s,k)=>s+W[k],0),k=ok[0];
+      for(const x of ok){r-=W[x];if(r<=0){k=x;break}}
+      let t=beat*4;CELLS[k].els.forEach(e=>{els.push({...e,t,cell:beat});t+=e.d});beat+=CELLS[k].b;
+    }
+    const taps=els.filter((e,i)=>!e.r&&!(i>0&&els[i-1].tie)).length,sig=els.map(e=>e.d+(e.r?"r":"")+(e.tie?"~":"")).join(" ");
+    if((taps>=(lvl===1?1:2)||els[0].d===16)&&sig!==prevSig&&!els.every(e=>e.d===4&&!e.r))return {els,sig};
+  }
+}
+// the notes you actually tap: not rests, and not the second half of a tie
+const tapsOf=els=>els.filter((e,i)=>!e.r&&!(i>0&&els[i-1].tie));
+
+// ---------- drawing. One plain line, like drum music. Notes sit on the line, stems up.
+const Y=60,STEM=34;
+// els with x already set. pre: id prefix so each note can be colored later.
+function drawEls(els,pre="",off=0){
+  // beams join eighths and sixteenths inside one beat
+  els.forEach(e=>e.beam=false);
+  const runs=[];let run=[];
+  els.forEach((e,i)=>{const p=els[i-1];
+    if(!e.r&&e.d<4){if(run.length&&p&&p.cell===e.cell&&!p.r&&p.d<4)run.push(e);else{if(run.length>1)runs.push(run);run=[e]}}
+    else{if(run.length>1)runs.push(run);run=[]}});
+  if(run.length>1)runs.push(run);
+  runs.forEach(r=>r.forEach(e=>e.beam=true));
+  let s="";
+  els.forEach((e,i)=>{
+    const x=e.x;let g="";
+    if(e.r){
+      if(e.d===8)g=`<rect x="${x-7}" y="${Y-6}" width="14" height="6"/>`;      // half rest sits on the line
+      else if(e.d===16)g=`<rect x="${x-7}" y="${Y}" width="14" height="6"/>`; // whole rest hangs below it
+      else g=`<text class="rest" x="${x}" y="${Y+(e.d===4?12:8)}" text-anchor="middle" font-size="${e.d===4?40:38}">${e.d===4?"𝄽":"𝄾"}</text>`;
+    }else if(e.d===16){
+      g=`<ellipse cx="${x}" cy="${Y}" rx="8.6" ry="5.6"/><ellipse class="hole" cx="${x}" cy="${Y}" rx="4.4" ry="2.9" transform="rotate(55 ${x} ${Y})"/>`;
+    }else{
+      const open=e.d>=8,sx=x+6.4,top=Y-STEM;
+      g=`<g transform="translate(${x} ${Y}) rotate(-20)"><ellipse rx="7.4" ry="5.2"/>${open?`<ellipse class="hole" rx="4.8" ry="2.3" transform="rotate(-18)"/>`:""}</g>`+
+        `<line x1="${sx}" x2="${sx}" y1="${Y-2}" y2="${top}" stroke-width="1.8"/>`;
+      if(e.d===2&&!e.beam)g+=`<path class="f" d="M${sx-.9} ${top}C${sx} ${top+8} ${sx+11} ${top+10} ${sx+8} ${top+22}C${sx+8.5} ${top+13} ${sx+4} ${top+11} ${sx-.9} ${top+9}Z"/>`;
+      if(e.d===3||e.d===6||e.d===12)g+=`<circle cx="${x+13}" cy="${Y-4.5}" r="2.3"/>`;
+    }
+    if(e.tie){const x2=els[i+1]?els[i+1].x-2:x+26; // a tie at the end of a line just trails off to the right
+      g+=`<path class="t" d="M${x+2} ${Y+8}Q${(x+x2)/2} ${Y+17} ${x2} ${Y+8}" stroke-width="2"/>`}
+    s+=`<g class="el" id="${pre}${off+i}">${g}</g>`;
+  });
+  runs.forEach(r=>{
+    const a=r[0].x+6.4,b=r[r.length-1].x+6.4;
+    s+=`<rect class="beam" x="${a-.9}" y="${Y-STEM}" width="${b-a+1.8}" height="5"/>`;
+    for(let i=1;i<r.length;i++)if(r[i].d===1&&r[i-1].d===1)s+=`<rect class="beam" x="${r[i-1].x+5.5}" y="${Y-STEM+8}" width="${r[i].x-r[i-1].x+1.8}" height="5"/>`;
+  });
+  return s;
+}
+// all eight bars show at once, a few to a line: 4 on a laptop, 2 on a tablet, 1 on a phone.
+// Every beat gets the same width, so the sweeping line moves at one steady speed, across bar lines too.
+// Levels with sixteenths get wider beats so those notes don't pile up.
+const X0=46,PL=20,RH=100;let U=17,GAP=17; // U: width of one sixteenth. GAP: how far before a bar's first beat its bar line sits. RH: height of one line
+const xAt=(bar,t)=>X0+PL+(bar*16+t)*U; // bar: which bar along the line
+function barsSVG(bars,ROW){
+  const minD=Math.min(...Object.keys(LEVELS[lvl].w).flatMap(k=>CELLS[k].els.map(e=>e.d)));U=minD<=1?24:17;GAP=minD<=1?12:17;
+  const rows=Math.ceil(bars.length/ROW),W=xAt(ROW-1,16)+2;let s="",n=0;
+  for(let r=0;r<rows;r++){
+    const rb=bars.slice(r*ROW,r*ROW+ROW),els=[];
+    rb.forEach((b,k)=>b.els.forEach(e=>{e.x=xAt(k,e.t);els.push(e)}));
+    let g=`<line class="ln" x1="6" x2="${W-6}" y1="${Y}" y2="${Y}"/><line class="ln" x1="6" x2="6" y1="${Y-14}" y2="${Y+14}"/>`;
+    if(r===0)g+=`<text class="ts" x="17" y="${Y-3}">4</text><text class="ts" x="17" y="${Y+19}">4</text>`;
+    rb.forEach((b,k)=>{const last=r*ROW+k===bars.length-1,x=k===rb.length-1?W-6:xAt(k,16)-GAP; // a bar line sits just before the next bar's first beat
+      g+=last?`<line class="ln" x1="${x-6}" x2="${x-6}" y1="${Y-14}" y2="${Y+14}"/><line class="ln" x1="${x-1.5}" x2="${x-1.5}" y1="${Y-14}" y2="${Y+14}" style="stroke-width:4"/>`
+             :`<line class="ln" x1="${x}" x2="${x}" y1="${Y-14}" y2="${Y+14}"/>`;
+      for(let q=0;q<4;q++){
+        g+=`<text class="count" x="${xAt(k,q*4)}" y="${Y+40}" text-anchor="middle">${q+1}</text>`;
+        if(lvl>1)g+=`<text class="count and" x="${xAt(k,q*4+2)}" y="${Y+40}" text-anchor="middle">&amp;</text>`;
+      }});
+    g+=drawEls(els,"e",n);n+=els.length;
+    s+=`<g transform="translate(0 ${r*RH})">${g}</g>`;
+  }
+  s+=`<g id="ticks"></g><line class="sweep" id="sweep" x1="${xAt(0,0)}" x2="${xAt(0,0)}" y1="${Y-44}" y2="${Y+28}" visibility="hidden"/><line class="sweep" id="sweep2" x1="0" x2="0" y1="0" y2="0" visibility="hidden"/>`;
+  return `<svg class="rh" viewBox="0 6 ${W} ${(rows-1)*RH+104}" role="img" aria-label="Eight bars of rhythm to tap">${s}</svg>`;
+}
+// small picture of one cell, for the list of note values on the home screen
+function cellSVG(k){
+  const c=CELLS[k],n=c.els.length,step=n>1?22:0,els=c.els.map((e,i)=>({...e,cell:0,x:16+i*step}));
+  const w=Math.max(60,32+step*(n-1)+(c.els.some(e=>e.d===6||e.d===12)?8:0));
+  return `<svg viewBox="0 ${Y-44} ${w} 68"><line class="ln" x1="2" x2="${w-2}" y1="${Y}" y2="${Y}" style="stroke:var(--muted);stroke-width:1.4"/>${drawEls(els)}</svg>`;
+}
+
+// ---------- sound: piano from the Salamander Grand Piano recordings (shared with the other games), and a click for the beat
+const SAMPLES={45:"A2",48:"C3",51:"Ds3",54:"Fs3",57:"A3",60:"C4",63:"Ds4",66:"Fs4",69:"A4",72:"C5"};
+const buffers={};let ctx,master,loading=null,live=[];
+function audio(){
+  if(!ctx){ctx=new(window.AudioContext||window.webkitAudioContext)({latencyHint:"interactive"});master=ctx.createGain();master.gain.value=.9;
+    const lim=ctx.createDynamicsCompressor();lim.threshold.value=-6;lim.knee.value=0;lim.ratio.value=12;lim.attack.value=.003;lim.release.value=.15;
+    master.connect(lim);lim.connect(ctx.destination)}
+  if(ctx.state!=="running")ctx.resume();return ctx}
+function loadPiano(){
+  if(loading)return loading;audio();
+  const decode=ab=>new Promise((ok,no)=>{const p=ctx.decodeAudioData(ab,ok,no);if(p&&p.then)p.then(ok,no)});
+  return loading=Promise.all(Object.entries(SAMPLES).map(([n,f])=>
+    fetch(`piano/${f}.mp3`).then(r=>r.arrayBuffer()).then(decode).then(b=>{buffers[n]=b}).catch(()=>{})));
+}
+// phones only allow sound that starts during a tap
+function unlock(){
+  try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+  try{audio();const b=ctx.createBuffer(1,1,22050),s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start(0)}catch(e){}
+  loadPiano();
+}
+["touchend","pointerup","click","keydown"].forEach(t=>addEventListener(t,unlock,{capture:true,passive:true}));
+// T: when, on the audio clock (0 = right now)
+function note(n,T=0,dur=.5,vol=.8){
+  try{
+    audio();T=Math.max(T,ctx.currentTime);const g=ctx.createGain();g.connect(master);
+    const src=Object.keys(SAMPLES).map(Number).reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a);
+    if(buffers[src]){
+      const s=ctx.createBufferSource();s.buffer=buffers[src];s.playbackRate.value=2**((n-src)/12);s.connect(g);
+      g.gain.setValueAtTime(vol,T);g.gain.setValueAtTime(vol,T+dur);g.gain.setTargetAtTime(0,T+dur,.08);s.start(T);s.stop(T+dur+.6);live.push(s);
+    }else{
+      const o=ctx.createOscillator();o.type="triangle";o.frequency.value=440*2**((n-69)/12);o.connect(g);
+      g.gain.setValueAtTime(0,T);g.gain.linearRampToValueAtTime(vol*.3,T+.01);g.gain.exponentialRampToValueAtTime(.001,T+dur+.2);o.start(T);o.stop(T+dur+.2);live.push(o);
+    }
+  }catch(e){}
+}
+function click(T,accent){
+  try{const o=ctx.createOscillator(),g=ctx.createGain();o.type="sine";o.frequency.value=accent?1760:1175;
+    g.gain.setValueAtTime(0,T);g.gain.linearRampToValueAtTime(accent?.45:.28,T+.002);g.gain.exponentialRampToValueAtTime(.001,T+.06);
+    o.connect(g);g.connect(master);o.start(T);o.stop(T+.08);live.push(o)}catch(e){}
+}
+// a note that rings while the key is held; call what it returns to let go
+function holdNote(n,vol=.7){
+  try{
+    audio();const src=Object.keys(SAMPLES).map(Number).reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a);
+    if(!buffers[src]){note(n,0,.3,vol);return()=>{}}
+    const T=ctx.currentTime,g=ctx.createGain(),s=ctx.createBufferSource();g.connect(master);
+    s.buffer=buffers[src];s.playbackRate.value=2**((n-src)/12);s.connect(g);g.gain.setValueAtTime(vol,T);s.start(T);s.stop(T+8);live.push(s);
+    return()=>{try{const t=ctx.currentTime;g.gain.cancelScheduledValues(t);g.gain.setValueAtTime(vol,t);g.gain.setTargetAtTime(0,t,.05);s.stop(t+.5)}catch(e){}};
+  }catch(e){return()=>{}}
+}
+const hush=()=>{live.forEach(s=>{try{s.stop()}catch(e){}});live=[]};
+const fanfare=()=>{const t=ctx.currentTime;[48,52,55,60,64,67,72].forEach((n,i)=>note(n,t+i*.09,1.4,.5))};
+// what the speaker is playing right now, on the audio clock. Taps and the moving line use this, so they line up with what you hear.
+function heardAt(perfMs){
+  if(ctx.getOutputTimestamp){const ts=ctx.getOutputTimestamp();
+    if(ts.contextTime>0&&ts.performanceTime>0)return ts.contextTime+(perfMs-ts.performanceTime)/1000}
+  return ctx.currentTime-(ctx.outputLatency||ctx.baseLatency||0)-(performance.now()-perfMs)/1000;
+}
+const TAP_NOTE=67;
+
+// ---------- confetti
+const fx=$("#fx"),fc=fx.getContext("2d");let bits=[];
+function confetti(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  fx.width=innerWidth;fx.height=innerHeight;
+  const cs=getComputedStyle(document.body),cols=["--jr","--int","--sr","--good"].map(v=>cs.getPropertyValue(v).trim());
+  bits=Array.from({length:90},()=>({x:Math.random()*fx.width,y:-20-Math.random()*fx.height*.5,vx:(Math.random()-.5)*2,vy:2+Math.random()*3,
+    c:cols[Math.random()*4|0],note:Math.random()<.3,a:Math.random()*6}));
+  const stepf=()=>{fc.clearRect(0,0,fx.width,fx.height);bits.forEach(b=>{b.x+=b.vx;b.y+=b.vy;b.a+=.1;fc.fillStyle=b.c;
+      if(b.note){fc.font="bold 22px Georgia";fc.fillText("♪",b.x,b.y)}else{fc.save();fc.translate(b.x,b.y);fc.rotate(b.a);fc.fillRect(-5,-3,10,6);fc.restore()}});
+    bits=bits.filter(b=>b.y<fx.height+30);if(bits.length)requestAnimationFrame(stepf);else fc.clearRect(0,0,fx.width,fx.height)};
+  stepf();
+}
+
+// ---------- screens
+const stage=$("#stage");
+const setLevel=l=>{lvl=l;store.set("lvl",l);document.body.className="l"+l};
+const best=()=>store.get(`best:${lvl}:tap`,null);
+function bar(title){return `<div class="bar"><button class="back" id="back">← Back</button><h2>${title}</h2><span class="chip">${LEVELS[lvl].name} · ♩ = ${LEVELS[lvl].bpm}</span></div>`}
+let onPad=null,onLift=null; // what pressing and letting go of the tap area / spacebar do right now
+function reset(){timers.forEach(clearTimeout);timers=[];cancelAnimationFrame(raf);if(ctx)hush();onPad=onLift=null;stage.classList.remove("playing")}
+const GOOD=.15,OK=.3; // seconds early or late: green, yellow
+
+function home(){
+  reset();const b=best();
+  stage.innerHTML=`<div class="app">
+   <div class="top"><div class="brand"><h1>Piano <em>Ritmo</em></h1><p>Read the rhythm. Tap it in time.</p></div>
+     <a class="icon-btn" href="./">← All games</a></div>
+   <div class="group"><span class="label">Pick your level</span>
+    <div class="levels">${[1,2,3].map(l=>`<button class="lv" data-l="${l}" aria-pressed="${l===lvl}"><b>${LEVELS[l].name}</b><span>♩ = ${LEVELS[l].bpm}</span></button>`).join("")}</div></div>
+   <button class="mode" id="go"><span class="glyph">♩♫</span><h3>Eight Bars</h3><p>A click counts you in. Tap each note as the line reaches it, and hold long notes for all their beats. Stay quiet on rests!</p>
+     <span class="best">${b?`Best: ${b}% in time`:"Not played yet"}</span></button>
+   <div class="group"><span class="label">${lvl===1?"The notes in this level":"New in "+LEVELS[lvl].name}</span>
+    <div class="legend">${LEVELS[lvl].learn.map(k=>`<div>${cellSVG(k)}<p style="margin:0"><b>${LEARN[k][0]}</b><span>${LEARN[k][1]}</span></p></div>`).join("")}</div></div>
+   <p class="hint">Press and hold the big button on a phone, or the spacebar on a computer.</p>
+   <p class="credit">Piano: <a href="https://archive.org/details/SalamanderGrandPianoV3" target="_blank" rel="noopener">Salamander Grand Piano</a> by Alexander Holm (CC BY 3.0)</p>
+  </div>`;
+  stage.querySelectorAll("[data-l]").forEach(el=>el.onclick=()=>{setLevel(+el.dataset.l);home()});
+  $("#go").onclick=play;
+}
+
+// the tap area and the spacebar do the same thing
+function padPress(ts){
+  if(!onPad)return;const p=$("#pad");if(p){p.classList.add("hit");setTimeout(()=>p.classList.remove("hit"),90)}
+  onPad(ts);
+}
+addEventListener("keydown",e=>{
+  if(e.code!=="Space"&&e.key!==" ")return;
+  if(!$("#pad"))return;e.preventDefault();if(!e.repeat)padPress(e.timeStamp);
+});
+addEventListener("keyup",e=>{if((e.code==="Space"||e.key===" ")&&onLift)onLift(e.timeStamp)});
+function padLabel(main,small,cls=""){const p=$("#pad");if(!p)return;p.className="pad "+cls;p.innerHTML=`${main}${small?`<small>${small}</small>`:""}`}
+
+// --- eight bars on screen at once: counted in, tapped straight through, then played back the right way
+function play(){
+  reset();
+  const L=LEVELS[lvl],beat=60/L.bpm,TOTAL=8,ROW=innerWidth>=1000?4:innerWidth>=560?2:1,rows=TOTAL/ROW;
+  let bars=[];
+  stage.classList.add("playing");
+  stage.innerHTML=`<div class="app">${bar("Eight Bars")}<div class="dots" id="dots"></div>
+    <div class="stats"><span>Bar <strong id="num">1</strong> of ${TOTAL}</span><span id="score"></span></div>
+    <div class="qcard"><div id="music" style="width:100%"></div><div class="msg" id="msg"></div></div>
+    <button class="pad" id="pad" aria-label="Tap">TAP</button></div>`;
+  $("#back").onclick=home;
+  const pad=$("#pad");
+  pad.addEventListener("pointerdown",e=>{e.preventDefault();try{pad.setPointerCapture(e.pointerId)}catch(_){};padPress(e.timeStamp)});
+  ["pointerup","pointercancel"].forEach(t=>pad.addEventListener(t,e=>{if(onLift)onLift(e.timeStamp)}));
+  pad.addEventListener("contextmenu",e=>e.preventDefault()); // a long press on a phone shouldn't open a menu
+  const dots=(res=[],now=-1)=>{$("#dots").innerHTML=Array.from({length:TOTAL},(_,k)=>`<i class="${res[k]||(k===now?"now":"")}"></i>`).join("")};
+  const msg=h=>{$("#msg").innerHTML=h};
+
+  const setup=()=>{
+    let sig=null;
+    do{bars=[];for(let i=0;i<TOTAL;i++){const b=newBar(sig);sig=b.sig;bars.push(b)}}while(!tapsOf(bars[0].els).length); // a quiet bar is fine, just not the very first one
+    $("#music").innerHTML=barsSVG(bars,ROW);dots();
+    msg("Read the rhythm. Ready?");
+    padLabel("Start",ROW>1?"or press the spacebar":"tap here","go");onPad=()=>turn();
+  };
+
+  // where the line is for a time (seconds after the first downbeat): which line of music, and how far along
+  const posAt=sec=>{const b=Math.min(TOTAL*16,sec/(beat/4)),r=Math.max(0,Math.min(rows-1,Math.floor(b/(ROW*16))));return{b,r,x:xAt(0,b-r*ROW*16),bar:Math.min(TOTAL-1,Math.max(0,Math.floor(b/16)))}};
+  const hideSweep=(id="#sweep")=>$(id)?.setAttribute("visibility","hidden");
+  const moveSweep=(r,x,cls="",id="#sweep")=>{const s=$(id);if(!s)return;s.setAttribute("x1",x);s.setAttribute("x2",x);s.setAttribute("y1",Y-44+r*RH);s.setAttribute("y2",Y+28+r*RH);s.setAttribute("class","sweep "+cls);s.setAttribute("visibility","visible")};
+  // a line coming in: over the last beat before a line starts (left: sixteenths to go), it slides from the left edge to beat 1
+  const leadX=left=>8+(xAt(0,0)-8)*(1-left/4);
+  // near the end of a line, a second line slides in at the start of the next one, so you see where to go next
+  const follow=(p,cls="")=>{moveSweep(p.r,p.x,cls);$("#num").textContent=p.bar+1;
+    const left=(p.r+1)*ROW*16-p.b;if(p.r<rows-1&&left<=4)moveSweep(p.r+1,leadX(left),cls,"#sweep2");else hideSweep("#sweep2")};
+
+  function turn(){
+    audio();onPad=null;
+    const T0=ctx.currentTime+.35+4*beat,END=T0+TOTAL*4*beat;
+    // a count-in bar of clicks, then the clicks go on under the music
+    for(let k=0;k<4*(TOTAL+1);k++)click(T0+(k-4)*beat,k%4===0);
+    // when each tappable note should land, how long to hold it, and whether a rest comes right after
+    const flat=bars.flatMap((b,bi)=>b.els.map(e=>({e,bi})));
+    const want=[];flat.forEach(({e,bi},i)=>{
+      if(e.r||(i>0&&flat[i-1].e.tie))return;
+      const j=e.tie?i+1:i,len=e.d+(e.tie?flat[i+1].e.d:0);
+      want.push({e,bi,at:T0+(bi*16+e.t)*beat/4,len,restAfter:!!(flat[j+1]&&flat[j+1].e.r)})});
+    const taps=[];let started=false,down=null,stop=null;
+    const pl=()=>padLabel("TAP","hold long notes","wait");
+    pl();msg(`<span class="big">· · · ·</span>`);
+    const lift=at=>{if(!down)return;down.up=at;down=null;if(stop)stop();stop=null};
+    onPad=ts=>{const at=heardAt(ts);if(at<T0-OK-.1)return;lift(at);stop=holdNote(TAP_NOTE);down={at,up:null};taps.push(down)};
+    onLift=ts=>lift(heardAt(ts));
+    let lastBar=-1;
+    const tick=()=>{
+      const now=heardAt(performance.now());
+      if(now<T0){const k=Math.floor((now-(T0-4*beat))/beat);
+        if(k>=0)msg(`<span class="big">${[1,2,3,4].map(n=>n<=k+1?n:"·").join(" ")}</span>`);
+        // the line slides in from the left during the last count-in beat and reaches the first note on "1"
+        const left=(T0-now)/(beat/4);if(left<=4)moveSweep(0,leadX(left));else hideSweep()}
+      else if(now<END){if(!started){started=true;pl();msg("Tap!")}
+        const p=posAt(now-T0);follow(p);if(p.bar!==lastBar){lastBar=p.bar;dots([],p.bar)}}
+      else if(now>END+OK+.05){lift(now);onPad=onLift=null;return judge(T0,want,taps)}
+      raf=requestAnimationFrame(tick)};
+    raf=requestAnimationFrame(tick);
+  }
+
+  let pts=0,items=0;
+  function judge(T0,want,taps){
+    // each bar gets its own score, for the dots up top
+    const bItems=Array(TOTAL).fill(0),bPts=Array(TOTAL).fill(0),barOf=at=>Math.max(0,Math.min(TOTAL-1,Math.floor((at-T0)/(4*beat))));
+    const extra=[],hit=new Map();
+    taps.forEach(tp=>{
+      let bestW=null;want.forEach(w=>{if(!hit.has(w)&&Math.abs(tp.at-w.at)<=OK&&(!bestW||Math.abs(tp.at-w.at)<Math.abs(tp.at-bestW.at)))bestW=w});
+      if(bestW){hit.set(bestW,tp);tp.w=bestW}else extra.push(tp)});
+    let good=0,close=0,miss=0,restsOk=0,restsBad=0,short=0,long=0,offs=[];
+    const mark=(e,cls)=>{const i=allEls().indexOf(e),g=$("#e"+i);if(g)g.classList.add(cls)};
+    want.forEach(w=>{
+      const tp=hit.get(w);if(!tp){miss++;mark(w.e,"no");return}
+      const d=tp.at-w.at;offs.push(d);
+      // quarter notes and longer: hold the key until the note is over, and let go when a rest comes
+      const end=w.at+w.len*beat/4;let held=true;
+      if(w.len>=4&&tp.up!=null){if(tp.up<end-Math.max(.25,w.len*beat/4*.3)){short++;held=false}else if(w.restAfter&&tp.up>end+.25){long++;held=false}}
+      tp.cls=Math.abs(d)<=GOOD&&held?"ok":"mid";
+      bItems[w.bi]++;bPts[w.bi]+=tp.cls==="ok"?1:.5;
+      if(tp.cls==="ok")good++;else close++;mark(w.e,tp.cls)});
+    want.forEach(w=>{if(!hit.get(w))bItems[w.bi]++});
+    extra.forEach(x=>bItems[barOf(x.at)]++);
+    // a tie's second note goes green or red with the note it hangs from
+    allEls().forEach((e,i,a)=>{if(i>0&&a[i-1].tie&&!a[i-1].r){const g=$("#e"+(i-1));if(g){const c=["ok","mid","no"].find(c=>g.classList.contains(c));if(c)$("#e"+i).classList.add(c)}}});
+    // rests: green if you kept quiet
+    bars.forEach((b,bi)=>b.els.forEach(e=>{if(!e.r)return;
+      const a=T0+(bi*16+e.t)*beat/4,z=a+e.d*beat/4,bad=extra.some(x=>x.at>=a-.02&&x.at<z-.02);
+      bItems[bi]++;if(bad){restsBad++;mark(e,"no")}else{restsOk++;bPts[bi]++;mark(e,"ok")}}));
+    // under the line: a mark where you tapped and a bar for how long you held (split if it runs onto the next line)
+    const yT=r=>Y+21+r*RH,end=xAt(ROW-1,16)-6;
+    $("#ticks").innerHTML=taps.map(tp=>{
+      const a=posAt(tp.at-T0),z=tp.up==null?a:posAt(tp.up-T0),cls=tp.cls||"no";let h="";
+      for(let r=a.r;r<=z.r;r++){const x1=r===a.r?a.x:xAt(0,0)-6,x2=r===z.r?Math.max(x1,z.x):end;
+        h+=`<line class="tick ${cls}" x1="${x1}" x2="${x2}" y1="${yT(r)}" y2="${yT(r)}" style="stroke-width:4;opacity:.55"/>`}
+      return h+`<line class="tick ${cls}" x1="${a.x}" x2="${a.x}" y1="${yT(a.r)-5}" y2="${yT(a.r)+5}"/>`}).join("");
+    items=want.length+restsOk+restsBad+extra.length;pts=good+close*.5+restsOk;
+    const res=bPts.map((p,k)=>{const f=bItems[k]?p/bItems[k]:1;return f>=.9?"ok":f>=.6?"mid":"no"});
+    dots(res);$("#num").textContent=TOTAL;
+    $("#score").innerHTML=`In time <strong>${Math.round(100*pts/Math.max(1,items))}%</strong>`;
+    // a short note on how it went
+    const avg=offs.length?offs.reduce((a,b)=>a+b,0)/offs.length:0;
+    let say=good===want.length&&!extra.length&&!restsBad?"<b>Perfect!</b>":
+      [good&&`${good} on time`,close&&`${close} close`,miss&&`${miss} missed`,extra.length&&`${extra.length} extra tap${extra.length>1?"s":""}`].filter(Boolean).join(" · ");
+    if(short)say+=" — hold long notes for all their beats!";
+    else if(long)say+=" — let go when the rest comes!";
+    else if(offs.length>=2&&Math.abs(avg)>.07&&good<want.length)say+=avg<0?" — a little early, wait for it!":" — a little late, get ready sooner!";
+    msg(say);
+    padLabel("Listen…","here's how it goes","wait");
+    later(()=>replay(),900);
+  }
+  const allEls=()=>bars.flatMap(b=>b.els);
+
+  // play it back the right way, with the line sweeping again. You can skip to your score.
+  function replay(){
+    audio();const T0=ctx.currentTime+.3,END=T0+TOTAL*4*beat;
+    padLabel("See your score","or keep listening","go");onPad=over;
+    for(let k=0;k<4*TOTAL;k++)click(T0+k*beat,k%4===0);
+    bars.forEach((b,bi)=>{b.els.forEach((e,i)=>{
+      if(e.r)return;if(i>0&&b.els[i-1].tie)return;
+      const len=e.d+(e.tie&&b.els[i+1]?b.els[i+1].d:0);
+      note(TAP_NOTE,T0+(bi*16+e.t)*beat/4,Math.max(.12,len*beat/4*.85),.7)})});
+    const tick=()=>{const now=heardAt(performance.now());
+      if(now>=T0&&now<END)follow(posAt(now-T0),"replay");
+      if(now>=END+.15){hideSweep();hideSweep("#sweep2");padLabel("See your score","","go");return}
+      raf=requestAnimationFrame(tick)};
+    raf=requestAnimationFrame(tick);
+  }
+
+  function over(){
+    const pct=Math.round(100*pts/Math.max(1,items)),prev=best(),rec=prev==null||pct>prev;
+    if(rec)store.set(`best:${lvl}:tap`,pct);
+    const stars=pct>=90?3:pct>=75?2:pct>=55?1:0;
+    finish({title:stars===3?"Bravissimo!":stars>=1?"Bravo!":"Ancora!",stars,line:`${pct}% in time`,
+      sub:rec?"New best!":`Your best: ${prev}%`,party:stars>=2});
+  }
+  $("#music").innerHTML=`<div class="msg">Loading the piano…</div>`;
+  loadPiano().then(()=>{if($("#music"))setup()});
+}
+
+function finish({title,line,sub="",stars,party}){
+  reset();
+  stage.innerHTML=`<div class="app">${bar("Finished")}<div class="done">
+    <h2>${title}</h2>
+    <div class="stars" aria-label="${stars} of 3 stars">${[0,1,2].map(k=>`<span class="${k<stars?"":"off"}">★</span>`).join("")}</div>
+    <div class="num">${line}</div>${sub?`<div style="color:var(--muted);font-weight:700">${sub}</div>`:""}
+    <div class="row"><button class="btn" id="home">Back</button><button class="btn go" id="again">Play again</button></div></div></div>`;
+  $("#back").onclick=home;$("#home").onclick=home;$("#again").onclick=play;
+  if(party){fanfare();confetti()}
+}
+
+setLevel(lvl);home();
+</script>
+
+</html>

@@ -822,7 +822,7 @@ function snake(){
     if(!started){started=true;$("#cover").hidden=true;hint()}
     if(turns.length<2)turns.push(d)};
   const loop=t=>{const dt=prevT?Math.min(100,t-prevT):0;prevT=t;
-    if(started&&!over&&t>=waitTill&&foods.length){acc+=dt;const ms=Math.max(105,240*Math.pow(.96,score));
+    if(started&&!over&&t>=waitTill&&foods.length){acc+=dt;const ms=Math.max(105,340*Math.pow(.95,score));
       while(acc>=ms){acc-=ms;step();if(t<waitTill||!foods.length){acc=0;break}}}
     else acc=0;
     draw();raf=requestAnimationFrame(loop)};
