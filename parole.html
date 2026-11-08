@@ -6,7 +6,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Nunito:wght@500;700;800&family=Playfair+Display:ital,wght@1,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Nunito:wght@500;700;800&family=Playfair+Display:ital,wght@1,800&family=Press+Start+2P&family=VT323&display=swap">
 <style>
 /* Layout: one narrow column under a playable keyboard; level color tints everything. */
 :root{
@@ -210,6 +210,35 @@ button,.board,.field{touch-action:manipulation}
   .qcard{padding:20px 16px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* retro 1-bit look for Falling Notes and Word Snake; stays dark in light mode. Heart: Kenney 1-Bit Pack (CC0) */
+.retro{--r-bg:#472d3c;--r-cr:#cfc6b8;--r-dk:#2b1d27;--r-y:#f7c51e;--r-red:#e6482e;--r-dot:#5a3a4c;
+  --pix:'Press Start 2P',ui-monospace,monospace;--pix2:'VT323',ui-monospace,monospace}
+.retro .screen{display:flex;flex-direction:column;background:var(--r-dk);border:4px solid var(--r-dk);align-self:center;width:100%}
+.retro .stats{background:var(--r-dk);color:var(--r-cr);font:400 11px/1 var(--pix);align-items:center;padding:6px 6px 10px;gap:8px}
+.retro .stats strong{color:var(--r-cr)}
+.retro .tempo-now{font:inherit;color:var(--r-y)}
+.retro .lives{display:flex;gap:2px;letter-spacing:0}
+.retro .lives i{width:24px;height:24px;background:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAR0lEQVR42mNgGAUY4JmH3v9nHnr/iRVnQldECpuBgYGBhZBrCLmYiVIvoxggteMSIyEN6GqYCCkgJMdErEJiXEd0lI4CVAAAJpQj1q8NJF8AAAAASUVORK5CYII=) center/24px no-repeat;image-rendering:pixelated}
+.retro .lives i.off{opacity:.25}
+.retro .credit{margin:-12px 0 0;text-align:center;font-size:.75rem;color:var(--muted)}
+.retro .field{height:470px;border:0;border-radius:0;background:var(--r-bg) radial-gradient(circle,var(--r-dot) 1px,transparent 1.5px) 12px 12px/24px 24px}
+.retro .staff,.retro .lane-line,.retro .note::before,.retro .note::after{display:none}
+.retro .note{top:40px}
+.retro .note .head{background:var(--r-dk);border:3px solid var(--r-cr);border-radius:0;padding:12px 14px;min-width:0;max-width:220px;transform:none;box-shadow:none}
+.retro .note .head span{transform:none;font:400 15px/1.5 var(--pix);color:var(--r-y);overflow-wrap:normal}
+.retro .note.splat .head{background:var(--r-red);border-color:var(--r-red)} .retro .note.splat .head span{color:var(--r-cr)}
+.retro .buckets{gap:8px;padding:0 8px 8px}
+.retro .bucket{height:auto;min-height:110px;padding:8px 6px;border:3px solid var(--r-cr);border-radius:0;background:var(--r-bg);color:var(--r-cr);font:400 20px/1 var(--pix2)}
+.retro .bucket.here{border-color:var(--r-y);transform:translateY(-4px)}
+.retro .bucket.ok{background:var(--r-y);border-color:var(--r-y);color:var(--r-dk)}
+.retro .bucket.no{background:var(--r-red);border-color:var(--r-red);color:var(--r-cr)}
+.retro .clue{background:var(--r-dk);border:0;border-radius:0;margin:0;padding:2px 6px 10px;flex-direction:row;align-items:baseline;gap:10px;text-align:left}
+.retro .clue .ask{color:var(--r-cr);font:400 11px/1.6 var(--pix);letter-spacing:0;flex:none}
+.retro .clue .big.meaning{color:var(--r-y);font:400 11px/1.6 var(--pix)}
+.retro .board canvas{border:0;border-radius:0;display:block}
+.retro .cover span{background:var(--r-dk);border:3px solid var(--r-cr);border-radius:0;color:var(--r-cr);font:400 11px/1.6 var(--pix)}
+.retro .pad button{border-radius:0;border:3px solid var(--r-dk);background:var(--r-bg);color:var(--r-cr)}
+.retro .pad button:active{background:var(--r-y);color:var(--r-dk)}
 </style>
 
 <canvas id="fx"></canvas>
@@ -551,20 +580,20 @@ function falling(){
   clearTimers();
   const pool=terms(lvl),X=[100/6,50,500/6];
   let score=0,streak=0,lives=3,y=0,q=null,last=null,locked=true,over=false,prevT=0,missed=[],lane=1,fast=false;
-  stage.innerHTML=`<div class="app">${bar("Falling Notes")}
-   <div class="stats"><span>Score <strong id="fs">0</strong></span><span class="tempo-now" id="ft"></span><span class="lives" id="fl"></span></div>
+  stage.innerHTML=`<div class="app retro">${bar("Falling Notes")}
+   <div class="screen"><div class="stats"><span>Score <strong id="fs">0</strong></span><span class="tempo-now" id="ft"></span><span class="lives" id="fl" role="img"></span></div>
    <div class="field" id="field"><div class="staff"><i></i><i></i><i></i><i></i><i></i></div>
      <div class="lane-line" style="left:33.33%"></div><div class="lane-line" style="left:66.66%"></div>
      <div class="note" id="note"><div class="head"><span id="nword"></span></div></div>
-     <div class="buckets" id="buckets"></div></div>
-   <p class="hint">${TOUCH?"Tap a bucket to send the note into it":"Steer with <kbd>←</kbd> <kbd>→</kbd> &nbsp;·&nbsp; drop fast with <kbd>↓</kbd> or <kbd>Space</kbd> &nbsp;·&nbsp; or click a bucket"}</p></div>`;
+     <div class="buckets" id="buckets"></div></div></div>
+   <p class="hint">${TOUCH?"Tap a bucket to send the note into it":"Steer with <kbd>←</kbd> <kbd>→</kbd> &nbsp;·&nbsp; drop fast with <kbd>↓</kbd> or <kbd>Space</kbd> &nbsp;·&nbsp; or click a bucket"}</p><p class="credit">Pixel heart by Kenney (kenney.nl)</p></div>`;
   wireBack();
   const note=$("#note"),field=$("#field"),bk=$("#buckets");
   const tempoNow=()=>tempoAt(score);
   const hud=()=>{$("#fs").textContent=score;$("#ft").textContent=tempoNow()+(streak>2?`  ♪${streak}`:"");
-    $("#fl").innerHTML=[0,1,2].map(k=>`<span class="${k<lives?"":"off"}">♥</span>`).join("")};
+    $("#fl").innerHTML=[0,1,2].map(k=>`<i class="${k<lives?"":"off"}"></i>`).join("");$("#fl").setAttribute("aria-label",`${lives} heart${lives===1?"":"s"} left`)};
   const dur=()=>Math.max(2.6,7.5*Math.pow(.955,score));
-  const travel=()=>field.clientHeight-92-note.offsetHeight-bk.offsetHeight+34;
+  const travel=()=>field.clientHeight-note.offsetTop-note.offsetHeight-bk.offsetHeight-12;
   const setLane=l=>{if(locked||over)return;lane=Math.max(0,Math.min(2,l));note.style.left=X[lane]+"%";
     bk.querySelectorAll(".bucket").forEach((b,i)=>b.classList.toggle("here",i===lane))};
   const spawn=()=>{
@@ -734,29 +763,28 @@ function snake(){
   const pool=terms(lvl),C=14,DIRS={u:[0,-1],d:[0,1],l:[-1,0],r:[1,0]};
   let R=15,score=0,streak=0,lives=3,last=null,q=null,foods=[],body=[],dir=[1,0],turns=[],started=false,over=false,
       waitTill=0,acc=0,prevT=0,missed=[],flash=null;
-  stage.innerHTML=`<div class="app snake">${bar("Word Snake")}
-   <div class="stats"><span>Score <strong id="ss">0</strong></span><span class="tempo-now" id="st"></span><span class="lives" id="sl"></span></div>
-   <div class="qcard clue"><span class="ask">Eat the word that means…</span><div class="big meaning" id="clue"></div></div>
-   <div class="board" id="board"><canvas id="sn"></canvas><div class="cover" id="cover"><span>${TOUCH?"Swipe or tap an arrow to start":"Press an arrow key or swipe to start"}</span></div></div>
+  stage.innerHTML=`<div class="app snake retro">${bar("Word Snake")}
+   <div class="screen"><div class="stats"><span>Score <strong id="ss">0</strong></span><span class="tempo-now" id="st"></span><span class="lives" id="sl" role="img"></span></div>
+   <div class="qcard clue"><span class="ask">EAT:</span><div class="big meaning" id="clue"></div></div>
+   <div class="board" id="board"><canvas id="sn"></canvas><div class="cover" id="cover"><span>${TOUCH?"Swipe or tap an arrow to start":"Press an arrow key or swipe to start"}</span></div></div></div>
    <p class="feedback" id="sf"></p>
    <div class="pad">${["u↑","l←","d↓","r→"].map(([k,a])=>`<button class="${k}" data-d="${k}" aria-label="Go ${({u:"up",d:"down",l:"left",r:"right"})[k]}">${a}</button>`).join("")}</div>
-   <p class="hint">${TOUCH?"Swipe on the board or tap the arrows":"Steer with <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, swipe, or the buttons"} &nbsp;·&nbsp; a wrong word or a crash costs a heart</p></div>`;
+   <p class="hint">${TOUCH?"Swipe on the board or tap the arrows":"Steer with <kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd>, swipe, or the buttons"} &nbsp;·&nbsp; a wrong word or a crash costs a heart</p><p class="credit">Pixel heart by Kenney (kenney.nl)</p></div>`;
   wireBack();
   const cv=$("#sn"),g=cv.getContext("2d"),board=$("#board");
   // fill the width, then fit as many rows as the screen has room for
   const appEl=stage.querySelector(".app");
   const appBox=appEl.getBoundingClientRect(),bBox=board.getBoundingClientRect();
   const avail=innerHeight-(bBox.top-appBox.top)-(appBox.bottom-bBox.bottom)-24;
-  let cell=Math.min(44,Math.floor((board.clientWidth-4)/C));
+  let cell=Math.min(44,Math.floor((board.clientWidth-8)/C));
   if(avail/cell<13)cell=Math.max(20,Math.floor(avail/13));
   R=Math.max(13,Math.min(22,Math.floor(avail/cell)));const dpr=devicePixelRatio||1;
-  const clueCard=stage.querySelector(".clue");clueCard.style.width=C*cell+4+"px";clueCard.style.alignSelf="center";
+  const scr=stage.querySelector(".screen");scr.style.width=C*cell+8+"px";
   cv.width=C*cell*dpr;cv.height=R*cell*dpr;cv.style.width=C*cell+"px";cv.style.height=R*cell+"px";g.scale(dpr,dpr);
   if(appEl.getBoundingClientRect().bottom>innerHeight)scrollTo(0,appEl.getBoundingClientRect().top+scrollY-8);
-  const fs=Math.max(12,Math.round(cell*.55)),font=`800 ${fs}px Nunito, system-ui, sans-serif`;
-  const col=v=>getComputedStyle(document.body).getPropertyValue(v).trim();
+  const fs=Math.max(8,Math.round(cell*.21)*2),font=`400 ${fs}px "Press Start 2P", ui-monospace, monospace`;
   const hud=()=>{$("#ss").textContent=score;$("#st").textContent=tempoAt(score)+(streak>2?`  ♪${streak}`:"");
-    $("#sl").innerHTML=[0,1,2].map(k=>`<span class="${k<lives?"":"off"}">♥</span>`).join("")};
+    $("#sl").innerHTML=[0,1,2].map(k=>`<i class="${k<lives?"":"off"}"></i>`).join("");$("#sl").setAttribute("aria-label",`${lives} heart${lives===1?"":"s"} left`)};
   const resetSnake=()=>{const y=R>>1;body=[[4,y],[3,y],[2,y]];dir=[1,0];turns=[]};
   const onSnake=(x,y)=>body.some(b=>b[0]===x&&b[1]===y);
   const place=()=>{
@@ -796,23 +824,28 @@ function snake(){
       if(f){flash={wrong:f.o};sayIt(q.x.t);$("#sf").innerHTML=`Not that one. It was <b>${esc(short(q.x.t))}</b>`;
         if(!missed.includes(q.x))missed.push(q.x);lose();later(()=>{if(!over)newQ()},1500)}}
   };
+  // 1-bit look: plum board, cream snake with eyes, words in bordered boxes; yellow = right, red = wrong
+  const P={bg:"#472d3c",cr:"#cfc6b8",dk:"#2b1d27",y:"#f7c51e",red:"#e6482e",dot:"#5a3a4c",hi:"#e8e1d6"};
+  const box=(x,y,w,h,edge,fill,b)=>{g.fillStyle=edge;g.fillRect(x,y,w,h);g.fillStyle=fill;g.fillRect(x+b,y+b,w-2*b,h-2*b)};
+  const seg=(x,y,fill)=>{const r=Math.round(cell*.25),b=Math.max(2,Math.round(cell/14));
+    g.fillStyle=P.dk;g.beginPath();g.roundRect(x+1,y+1,cell-2,cell-2,r);g.fill();
+    g.fillStyle=fill;g.beginPath();g.roundRect(x+1+b,y+1+b,cell-2-2*b,cell-2-2*b,Math.max(1,r-b));g.fill();
+    g.fillStyle=fill===P.cr?P.hi:fill;g.fillRect(x+Math.round(cell*.28),y+Math.round(cell*.22),Math.round(cell*.36),Math.max(2,Math.round(cell/9)))};
   const draw=()=>{
-    const ink=col("--ink"),line=col("--line"),lv=col("--lvl"),kw=col("--key-w"),kbk=col("--key-b"),edge=col("--key-edge");
-    g.clearRect(0,0,C*cell,R*cell);
-    g.fillStyle=line;for(let x=1;x<C;x++)for(let y=1;y<R;y++){g.beginPath();g.arc(x*cell,y*cell,1.5,0,7);g.fill()}
+    const W=C*cell,H=R*cell,d=Math.max(2,Math.round(cell/9)),b=Math.max(2,Math.round(cell/14));
+    g.fillStyle=P.bg;g.fillRect(0,0,W,H);
+    g.fillStyle=P.dot;for(let x=0;x<C;x++)for(let y=0;y<R;y++)if((x+y)%2)g.fillRect(x*cell+(cell-d>>1),y*cell+(cell-d>>1),d,d);
     g.font=font;g.textAlign="center";g.textBaseline="middle";
     for(const f of foods){
-      const right=flash&&flash.wrong&&f.o===q.x,wrong=flash&&flash.wrong===f.o;
-      g.fillStyle=right?col("--good"):wrong?col("--bad"):col("--surface");g.strokeStyle=right?col("--good"):wrong?col("--bad"):lv;g.lineWidth=2.5;
-      g.beginPath();g.roundRect(f.x*cell+2,f.y*cell+2,f.w*cell-4,cell-4,cell/2);g.fill();g.stroke();
-      g.fillStyle=right||wrong?"#fff":ink;g.fillText(short(f.o.t),(f.x+f.w/2)*cell,f.y*cell+cell/2+1)}
-    body.slice(1).forEach(([x,y],i)=>{const black=i%2===1;
-      g.fillStyle=black?kbk:kw;g.strokeStyle=black?kbk:edge;g.lineWidth=1.5;
-      g.beginPath();g.roundRect(x*cell+2,y*cell+2,cell-4,cell-4,5);g.fill();g.stroke()});
-    const [hx,hy]=body[0];g.fillStyle=flash&&flash.crash?col("--bad"):lv;
-    g.beginPath();g.roundRect(hx*cell+1,hy*cell+1,cell-2,cell-2,cell/2.5);g.fill();
-    g.fillStyle=col("--on-lvl");const ex=hx*cell+cell/2+dir[0]*cell*.18,ey=hy*cell+cell/2+dir[1]*cell*.18;
-    [[-1],[1]].forEach(([s])=>{g.beginPath();g.arc(ex+dir[1]*s*cell*.2,ey+dir[0]*s*cell*.2,cell*.08+1,0,7);g.fill()});
+      const right=flash&&flash.wrong&&f.o===q.x,wrong=flash&&flash.wrong===f.o,c=right?P.y:wrong?P.red:P.cr;
+      box(f.x*cell+2,f.y*cell+3,f.w*cell-4,cell-6,c,right||wrong?c:P.bg,b);
+      g.fillStyle=right?P.dk:P.cr;g.fillText(short(f.o.t),Math.round((f.x+f.w/2)*cell),Math.round(f.y*cell+cell/2+1))}
+    for(let i=body.length-1;i>0;i--)seg(body[i][0]*cell,body[i][1]*cell,P.cr);
+    const [hx,hy]=body[0],X=hx*cell,Y=hy*cell;seg(X,Y,flash&&flash.crash?P.red:P.cr);
+    const e=Math.max(4,Math.round(cell/4)),pu=Math.max(2,e>>1),cx=X+cell/2+dir[0]*cell*.14,cy=Y+cell/2+dir[1]*cell*.14;
+    [-1,1].forEach(s=>{const ex=Math.round(cx+dir[1]*s*cell*.2-e/2),ey=Math.round(cy+dir[0]*s*cell*.2-e/2);
+      g.fillStyle="#fff";g.fillRect(ex,ey,e,e);g.fillStyle=P.dk;
+      g.fillRect(ex+((e-pu)>>1)+Math.round(dir[0]*(e-pu)/2),ey+((e-pu)>>1)+Math.round(dir[1]*(e-pu)/2),pu,pu)});
   };
   const end=()=>{clearTimers();
     const prev=best("snake"),rec=score>0&&(prev==null||score>prev);if(rec)store.set(`best:${lvl}:snake`,score);
@@ -834,6 +867,8 @@ function snake(){
   board.onpointerup=e=>{const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.max(Math.abs(dx),Math.abs(dy))<24)return;
     turn(Math.abs(dx)>Math.abs(dy)?(dx>0?"r":"l"):(dy>0?"d":"u"))};
   resetSnake();newQ();hud();raf=requestAnimationFrame(loop);
+  // word widths depend on the pixel font; once it has loaded, lay the words out again if the game hasn't started
+  document.fonts.load(font).then(()=>{if(!started&&document.contains(cv))place()});
 }
 
 // --- finish
